@@ -24,6 +24,26 @@ class Server:
         if is_leader:
             print(node_id, "is leader")
         self.current_leader = -1
+        f = (num_nodes - 1) / 2
+        if (uid <= f):
+            self.is_replica = True
+            self.log_name = str(self.node_id) + ".log"
+            self.slot_num = 1
+            self.proposals = []
+            self.decisions = []
+        else:
+            self.is_replica = False
+
+    def exists(proposal, pair_set):
+        for (sn, p) in pair_set:
+            if proposal == p:
+                return slot_num
+        return None
+
+    def propose(proposal):
+        if (exists(proposal, self.decisions) == None):
+            
+
 
 
 class Scout:
@@ -46,6 +66,13 @@ class Acceptor:
     def __init__(self):
         self.accepted = []
         self.ballot_num = -1;
+
+    def run():
+        while(1):
+            # TODO: replace receive with actual receive
+            msg = receive();
+            
+
 
 
 if __name__ == "__main__":
