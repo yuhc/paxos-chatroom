@@ -62,7 +62,7 @@ class Server:
 
     
     def propose(self, proposal):
-        if (!exists_check_proposal(proposal, self.decisions, False)):
+        if (not exists_check_proposal(proposal, self.decisions, False)):
             s = -1
             all_pairs = itertools.chain(proposals, decisions)
             sorted_all_pairs = sorted(all_pairs)
@@ -82,16 +82,15 @@ class Server:
             # send(leader, (propose, (s, p)))
 
 
-    def perform(self, (kapa, cid, op)):
-        if (exists_check_proposal((kapa, cid, op), self.decisions, True)):
+    def perform(self, p):
+        if (exists_check_proposal(p, self.decisions, True)):
             self.slot_num = self.slot_num + 1
         else:
             self.slot_num = self.slot_num + 1
             with open(self.log, 'a') as f:
-                f.write(op)
+                f.write(p[3])
             # TODO: send client response
-            # send(kapa, (response, cid, "Done"))
-
+            # send(p[0], ("response", p[1], "Done"))
 
     def broadcast_to_server(self, message):
         self.nt.broadcast(message)
@@ -109,58 +108,79 @@ class Server:
                 # TODO: handle the received value
                 print(self.uid, "handles", buf)
 
+    def replica_operation(self):
+        
+
+    def leader_operation(self):
+
 
 class Scout:
-    def __init__(self, leader_id, num_nodes, b):
+    def __init__(self, leader_id, num_nodes, b, m):
         self.leader_id = leader_id
         self.ballot_num = b
-        self.pvalues = None
+        self.pvalues = []
         self.waitfor = set(range(0, num_nodes))
+        self.m = m
+        self.num_nodes = num_nodes
+
+    def run(self):
+        # TODO: for all acceptors send(a, ("p1a", self.node_id, self.ballot_num))
+        triple = literal_eval(self.m)
+        if (triple[0] == "p1b"):
+            if (triple[2] == self.ballot_num):
+                self.pvalues.append(triple[3])
+                self.waitfor.remove(triple[1])
+                if (len(self.waitfor) < num_nodes /2):
+                    # TODO: send(leader, ("adopted", self.ballot_num, str(self.pvalues)))
+                    os._exit()
+            else:
+                # TODO: send(leader, ("preempted", str(triple[2])))
+                os._exit()
+        
 
 class Commander:
-    def __init__(self, leader_id, num_nodes, pvalue):
+    def __init__(self, leader_id, num_nodes, pvalue, m):
         self.leader_id = leader_id
         self.pvalue = pvalue
         self.ballot_num = pvalue[0]
         self.slot_num   = pvalue[1]
         self.proposal   = pvalue[2]
         self.waitfor = set(range(0, num_nodes))
+        self.m = m
 
     def run(self):
-        # TODO: for all acceptros send(a, ("p2a", self.node_id, pvalue))
-        while(1):
-            m = receive()
-            triple = literal_eval(m)
-            if (triple[0] == "p2b"):
-                if (pvalue[2] == triple[2]):
-                    self.waitfor.remove(triple[1])
-                    if (len(self.waitfor) < num_nodes / 2):
-                        # TODO: for all replicas send(p, ("decision", pvalue[1], pvalue[2]))
-                        os._exit()
-
+        # TODO: for all acceptors send(a, ("p2a", self.node_id, pvalue))
+        triple = literal_eval(self.m)
+        if (triple[0] == "p2b"):
+            if (self.ballot_num == triple[2]):
+                self.waitfor.remove(triple[1])
+                if (len(self.waitfor) < num_nodes / 2):
+                    # TODO: for all replicas send(p, ("decision", self.slot_num, self.proposal))
+                    os._exit()
+            else:
+                # TODO: send(leader, ("preempted, triple[2]"))
+                os._exit()
 
 
 class Acceptor:
-    def __init__(self):
+    def __init__(self, m):
         self.accepted = []
         self.ballot_num = -1;
+        self.m = m
 
     def run(self):
-        while(1):
-            # TODO: replace receive with actual receive
-            m = receive()
-            triple = literal_eval(m)
+        triple = literal_eval(self.m)
 
-            if (triple[0] == "p1a"): 
-                if triple[2] > self.ballot_num:
-                    self.ballot_num = triple[2]
-                # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, "accepted"))
-            elif (triple[0] == "p2a"):
-                pvalue = triplep[2]
-                if pvalue[0] >= self.ballot_num:
-                    ballot_num = pvalue[0]
-                    accepted.append(pvalue)
-                # TODO: send(leader, ("p2b, self.node_id, self.ballot_num"))
+        if (triple[0] == "p1a"): 
+            if triple[2] > self.ballot_num:
+                self.ballot_num = triple[2]
+            # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, "accepted"))
+        elif (triple[0] == "p2a"):
+            pvalue = triplep[2]
+            if pvalue[0] >= self.ballot_num:
+                ballot_num = pvalue[0]
+                accepted.append(pvalue)
+            # TODO: send(leader, ("p2b, self.node_id, self.ballot_num"))
 
 
 if __name__ == "__main__":
