@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import threading, sys
+import network
 
 from threading import Thread, Lock
 
@@ -16,7 +17,7 @@ class Server:
     '''
     def __init__(self, node_id, is_leader, num_nodes):
         self.node_id = node_id
-        self.uid = "Server[" + str(node_id) + "]"
+        self.uid = "Server " +  str(node_id)
         self.num_nodes = num_nodes
 
         # Leaders
@@ -31,12 +32,19 @@ class Server:
             # f+1  servers are replicas
             # 2f+1 (all)  servers are acceptors
             self.is_replica = True
-            self.log_name = str(self.node_id) + ".log"
+            self.log_name = "server_" + str(self.node_id) + ".log"
             self.slot_num = 1
             self.proposals = []
             self.decisions = []
         else:
             self.is_replica = False
+
+        # network controller
+        self.nt = Network(uid)
+        try:
+            thread.start_new_thread(receive)
+        except:
+            print("Error: unable to start new thread")
 
     def exists(proposal, pair_set):
         for (sn, p) in pair_set:
@@ -47,6 +55,21 @@ class Server:
     def propose(proposal):
         if (exists(proposal, self.decisions) == None):
             # TODO: propose
+
+    def broadcast_to_server(message):
+        self.nt.broadcast(message)
+        
+    def send_to_server(dest_id, message):
+        self.nt.send_to_server(dest_id, message)
+
+    def send_to_client(dest_id, message):
+        self.nt.send_to_client(dest_id, message)
+
+    def receive():
+        while 1:
+            buf = self.nt.receive()
+            if len(buf) > 0:
+                # TODO: handle the received value
 
 
 class Scout:
