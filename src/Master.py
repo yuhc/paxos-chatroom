@@ -1,33 +1,36 @@
 #! /usr/bin/python3
 
 import fileinput
-import subprocess
-import sys
+import subprocess, sys, os, signal, time
+
+SLEEP_TIME = 5
 
 if __name__ == "__main__":
     nodes, clients, = [], []
     num_nodes, num_clients = 0, 0
     for line in fileinput.input():
+        print("#", line.strip())
         line = line.split();
 
         if line[0] == 'start':
             num_nodes = int(line[1])
             num_clients = int(line[2])
-            """ start up the right number of nodes and clients, and store the 
+            """ start up the right number of nodes and clients, and store the
                 connections to them for sending further commands """
             for i in range(num_clients):
                 p = subprocess.Popen(["./client.py",
                                       str(i),
                                       str(num_nodes)])
                 clients.append(p.pid)
-                print("Client pid:", p.pid)
+                print("Client#", i, " pid:", p.pid, sep="")
             for i in range(num_nodes):
                 p = subprocess.Popen(["./node.py",
                                       str(i),
                                       str(True) if i == 0 else str(False),
                                       str(num_nodes)])
                 nodes.append(p.pid)
-                print("Server pid:", p.pid)
+                print("Server#", i, " pid:", p.pid, sep="")
+            time.sleep(SLEEP_TIME) # ensure the establish of sockets
 
         if line[0] == 'sendMessage':
             client_index = int(line[1])
@@ -41,7 +44,7 @@ if __name__ == "__main__":
                 in the format described on the handout """
 
         if line[0] == 'allClear':
-            """ Ensure that this blocks until all messages that are going to 
+            """ Ensure that this blocks until all messages that are going to
                 come to consensus in PAXOS do, and that all clients have heard
                 of them """
 
@@ -50,10 +53,10 @@ if __name__ == "__main__":
             """ Immediately crash the server specified by node_index """
             if node_index in range(num_nodes):
                 if nodes[node_index] != None:
+                    os.kill(nodes[node_index], signal.SIGKILL)
                     nodes[node_index] = None
-                    os.kill(nodes[node_index])
                 else:
-                    print(line[1], "has been killed")
+                    print("Server#", line[1], " has been killed", sep="")
             else:
                 print(line[1], "is out of bound")
 
@@ -68,12 +71,22 @@ if __name__ == "__main__":
                                           len(nodes)])
                     nodes[node_index] = p.pid
                 else:
-                    print(line[1], "is alive")
+                    print("Server#", line[1], " is alive", sep="")
             else:
-                print(line[1], "is out of bound")
+                print("Parameter <", line[1], "> is out of bound", sep="")
 
         if line[0] == 'timeBombLeader':
             num_messages = int(line[1])
             """ Instruct the leader to crash after sending the number of paxos
                 related messages specified by num_messages """
 
+
+    # kill the remained nodes and clients
+    for i in range(num_nodes):
+        if nodes[i] != None:
+            os.kill(nodes[i], signal.SIGKILL)
+            print("Server#", i, " stopped", sep="")
+    for i in range(num_clients):
+        if clients[i] != None:
+            os.kill(clients[i], signal.SIGKILL)
+            print("Client#", i, " stopped", sep="")

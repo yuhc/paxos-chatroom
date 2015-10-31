@@ -2,56 +2,65 @@
 
 import sys, socket
 
-from threading import Thread, Lock
-
 class Network:
 
     SERVER_BASE_PORT = 8000
     CLIENT_BASE_PORT = 9000
 
-    def __init__(uid):
+    def __init__(self, uid):
         # get id
         self.uid = uid
-        uid_list = uid.split()
+        uid_list = uid.split('#')
         self.node_id = int(uid_list[1])
 
         # create socket
-        self.PRIVATE_TCP_IP = socket.gethostname(socket.gethostname())
+        self.PRIVATE_TCP_IP = socket.gethostbyname(socket.gethostname())
         self.is_server = True if uid[0] == 'S' else False
-        BASE_PORT = SERVER_BASE_PORT if self.is_server else CLIENT_BASE_PORT
-        TCP_PORT = self.node_id + self.BASE_PORT
+        BASE_PORT = self.SERVER_BASE_PORT if self.is_server \
+               else self.CLIENT_BASE_PORT
+        TCP_PORT = self.node_id + BASE_PORT
         self.BUFFER_SIZE = 1024
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind(self.PRIVATE_TCP_IP, TCP_PORT)
+        self.server.bind((self.PRIVATE_TCP_IP, TCP_PORT))
         self.server.listen(5)
         print(uid, " socket ", self.PRIVATE_TCP_IP, ":", TCP_PORT, " started",
               sep="")
 
-    def send_to_server(dest_id, message):
+    def send_to_server(self, dest_id, message):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((self.PRIVATE_TCP_IP, SERVER_BASE_PORT+dest_id))
-            s.send(message)
+            s.connect((self.PRIVATE_TCP_IP, self.SERVER_BASE_PORT+dest_id))
+            s.send(message.encode('ascii'))
+            print(self.uid, " sends <", message, "> to Server ", dest_id,
+                  sep="")
         except:
             print(self.uid, "connects to Server", dest_id, "failed")
+            print("Unexpected error:", sys.exc_info()[0])
 
-    def send_to_client(dest_id, message):
+    def send_to_client(self, dest_id, message):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((self.PRIVATE_TCP_IP, CLIENT_BASE_PORT+dest_id))
-            s.send(message)
+            s.connect((self.PRIVATE_TCP_IP, self.CLIENT_BASE_PORT+dest_id))
+            s.send(message.encode('ascii'))
+            print(self.uid, " sends <", message, "> to Client ", dest_id,
+                  sep="")
         except:
             print(self.uid, "connects to Client", dest_id, "failed")
 
-    def broadcast(message):
+    def broadcast(self, message):
         for i in range(num_nodes):
             send_to_server(i, message)
 
-    def receive():
+    def receive(self):
         connection, address = self.server.accept()
         buf = connection.recv(self.BUFFER_SIZE)
-        return buf
+        if len(buf) > 0:
+            decode_buf = buf.decode('ascii')
+            print(self.uid, " receives <", decode_buf, "> from ", address, sep="")
+        else:
+            decode_buf = ""
+        return decode_buf
 
-    def shutdown():
+    def shutdown(self):
         self.server.close()
         print(self.uid, "socket closed")

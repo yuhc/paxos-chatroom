@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
-import threading, sys
-import network
-
+import threading, sys, time
 from threading import Thread, Lock
+
+from network import Network
 
 class Server:
 
@@ -17,7 +17,7 @@ class Server:
     '''
     def __init__(self, node_id, is_leader, num_nodes):
         self.node_id = node_id
-        self.uid = "Server " +  str(node_id)
+        self.uid = "Server#" +  str(node_id)
         self.num_nodes = num_nodes
 
         # Leaders
@@ -28,7 +28,7 @@ class Server:
 
         # Replicas
         max_faulty = (num_nodes - 1) / 2
-        if (nod_id <= max_faulty):
+        if (node_id <= max_faulty):
             # f+1  servers are replicas
             # 2f+1 (all)  servers are acceptors
             self.is_replica = True
@@ -40,11 +40,12 @@ class Server:
             self.is_replica = False
 
         # network controller
-        self.nt = Network(uid)
+        self.nt = Network(self.uid)
         try:
-            thread.start_new_thread(receive)
+            self.t_recv = Thread(target=self.receive)
+            self.t_recv.start()
         except:
-            print("Error: unable to start new thread")
+            print(self.uid, "error: unable to start new thread")
 
     def exists(proposal, pair_set):
         for (sn, p) in pair_set:
@@ -55,21 +56,23 @@ class Server:
     def propose(proposal):
         if (exists(proposal, self.decisions) == None):
             # TODO: propose
+            print("TODO")
 
-    def broadcast_to_server(message):
+    def broadcast_to_server(self, message):
         self.nt.broadcast(message)
-        
-    def send_to_server(dest_id, message):
+
+    def send_to_server(self, dest_id, message):
         self.nt.send_to_server(dest_id, message)
 
-    def send_to_client(dest_id, message):
+    def send_to_client(self, dest_id, message):
         self.nt.send_to_client(dest_id, message)
 
-    def receive():
+    def receive(self):
         while 1:
             buf = self.nt.receive()
             if len(buf) > 0:
                 # TODO: handle the received value
+                print(self.uid, "handles", buf)
 
 
 class Scout:
@@ -106,3 +109,4 @@ if __name__ == "__main__":
     num_nodes = int(cmd[3])
     s = Server(node_id, is_leader, num_nodes)
     print(s.uid, "started")
+    s.t_recv.join()
