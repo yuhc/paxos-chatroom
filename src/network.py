@@ -8,6 +8,9 @@ class Network:
     SERVER_BASE_PORT = 8000
     CLIENT_BASE_PORT = 9000
 
+    '''
+    @uid has three different kinds: Master#0, Server#i and Client#j
+    '''
     def __init__(self, uid):
         # get id
         self.uid = uid

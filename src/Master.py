@@ -2,27 +2,32 @@
 
 import fileinput
 import subprocess, sys, os, signal, time
+from threading import Thread, Lock
 
 from network import Network
 
 SLEEP_TIME = 5
-uid = "Master#0"
-counter = 0 # number of ack needed to be received from clients
-
-def receive(self):
-    while 1:
-        buf = nt.receive()
-        if len(buf) > 0:
-            print(buf)
-            if buf == "messageHasBeenLogged":
-                counter = counter - 1
-
+PAUSE_TIME = 0.5
 
 if __name__ == "__main__":
+    uid = "Master#0"
+    counter = 0 # number of ack needed to be received from clients
+
     # network controller
     nt = Network(uid)
+    def receive():
+        global nt
+        global counter
+        while 1:
+            buf = nt.receive()
+            if len(buf) > 0:
+                print(uid, "handles", buf)
+                if buf == "messageHasBeenLogged":
+                    counter = counter - 1
+
     try:
         t_recv = Thread(target=receive)
+        t_recv.daemon = True
         t_recv.start()
     except:
         print(uid, "error: unable to start new thread")
@@ -68,6 +73,8 @@ if __name__ == "__main__":
             client_index = int(line[1])
             """ Print out the client specified by client_index's chat history
                 in the format described on the handout """
+            nt.send_to_client(client_index, "printChatLog")
+            time.sleep(PAUSE_TIME) # ensure the log has been printed
 
         if line[0] == 'allClear':
             """ Ensure that this blocks until all messages that are going to
@@ -118,3 +125,4 @@ if __name__ == "__main__":
         if clients[i] != None:
             os.kill(clients[i], signal.SIGKILL)
             print("Client#", i, " stopped", sep="")
+    sys.exit()

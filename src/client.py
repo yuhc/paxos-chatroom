@@ -14,6 +14,7 @@ class Client:
         self.client_id = client_id
         self.num_nodes = num_nodes
         self.uid = "Client#" + str(client_id)
+        self.chatlog = []
 
         # network controller
         self.nt = Network(self.uid)
@@ -31,14 +32,27 @@ class Client:
             buf = self.nt.receive()
             if len(buf) > 0:
                 # TODO: handle the received value
-                print(buf)
+                print(self.uid, "handles", buf)
                 buf = buf.split()
+
+                # send request to server (leader)
                 if buf[0] == "sendMessage":
                     # TODO: send message to leader
                     print(buf[0])
                     self.nt.send_to_master("messageHasBeenLogged")
+
+                # print chat log
+                if buf[0] == "printChatLog"
+                    print(self.uid, "prints chat log")
+                    for l in self.chatlog:
+                        print(self.uid, ">>", l)
+
+                # receive response from leader, send ask to master
                 if buf[0] == "response":
+                    # TODO: add decision into self.chatlog
                     self.nt.send_to_master("messageHasBeenLogged")
+
+                # receive heartbeat
                 if buf[0] == "heartbeat":
                     # TODO: handle heartbeat
                     print(buf[0])
