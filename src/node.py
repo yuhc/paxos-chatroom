@@ -26,6 +26,9 @@ class Server:
         self.is_leader = is_leader
         if is_leader:
             print(self.uid, "is leader")
+            self.leader_proposals = []
+            self.leader_ballot_num = (0, self.node_id)
+            self.active = false
         self.current_leader = -1
 
         # Replicas
@@ -108,10 +111,20 @@ class Server:
                 # TODO: handle the received value
                 print(self.uid, "handles", buf)
 
-    def replica_operation(self):
-        
+    def replica_operation(self, m):
+        triple = literal_evel(m)
+        if (triple[0] == "request"):
+            self.propose(triple[1])
+        elif (triple[0] == "decision"):
+            self.decisions.append((triple[1], triple[2]))
+            for (sn, p) in [(ss, pp) for (ss, pp) in self.decisions if ss == self.slot_num]:
+                for (snn, p3) in [(s3, p4) for (s3, p4) in self.proposals if p4 != p]:
+                    self.propose(p3)
+                self.perform(p)
 
-    def leader_operation(self):
+    def leader_operation(self, m):
+        triple = literal_eval(m)
+        if (triple[0] == "propose"):
 
 
 class Scout:
