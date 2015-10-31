@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 
-import threading, sys
+import threading, sys, itertools, os
 
 from threading import Thread, Lock
+from ast import literal_eval
 
 class Server:
 
@@ -34,15 +35,50 @@ class Server:
         else:
             self.is_replica = False
 
-    def exists(proposal, pair_set):
+
+    def exists_check_proposal(self, proposal, pair_set, compare):
         for (sn, p) in pair_set:
             if proposal == p:
-                return slot_num
-        return None
+                if (compare):
+                    if (sn < self.slot_num):
+                        return True
+                else: 
+                    return True
+        return False
 
-    def propose(proposal):
-        if (exists(proposal, self.decisions) == None):
-            
+    
+    def propose(self, proposal):
+        if (!exists_check_proposal(proposal, self.decisions, False)):
+            s = -1
+            all_pairs = itertools.chain(proposals, decisions)
+            sorted_all_pairs = sorted(all_pairs)
+            if (next(all_pairs, None) != None):
+                for sn, p in sorted_all_pairs:
+                    if (sn == s + 1):
+                        s = sn
+                    else:
+                        s = s + 1
+                        break
+                if s == sorted_all_pairs[-1][0]:
+                    s = s + 1
+            else:
+                s = 0
+            proposals.append((s, proposal))
+            # TODO: Send to leader
+            # send(leader, (propose, (s, p)))
+
+
+    def perform(self, (kapa, cid, op)):
+        if (exists_check_proposal((kapa, cid, op), self.decisions, True)):
+            self.slot_num = self.slot_num + 1
+        else:
+            self.slot_num = self.slot_num + 1
+            with open(self.log, 'a') as f:
+                f.write(op)
+            # TODO: send client response
+            # send(kapa, (response, cid, "Done"))
+
+
 
 
 
@@ -62,17 +98,41 @@ class Commander:
         self.proposal   = pvalue[2]
         self.waitfor = set(range(0, num_nodes))
 
+    def run(self):
+        # TODO: for all acceptros send(a, ("p2a", self.node_id, pvalue))
+        while(1):
+            m = receive()
+            triple = literal_eval(m)
+            if (triple[0] == "p2b"):
+                if (pvalue[2] == triple[2]):
+                    self.waitfor.remove(triple[1])
+                    if (len(self.waitfor) < num_nodes / 2):
+                        # TODO: for all replicas send(p, ("decision", pvalue[1], pvalue[2]))
+                        os._exit()
+
+
+
 class Acceptor:
     def __init__(self):
         self.accepted = []
         self.ballot_num = -1;
 
-    def run():
+    def run(self):
         while(1):
             # TODO: replace receive with actual receive
-            msg = receive();
-            
+            m = receive()
+            triple = literal_eval(m)
 
+            if (triple[0] == "p1a"): 
+                if triple[2] > self.ballot_num:
+                    self.ballot_num = triple[2]
+                # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, "accepted"))
+            elif (triple[0] == "p2a"):
+                pvalue = triplep[2]
+                if pvalue[0] >= self.ballot_num:
+                    ballot_num = pvalue[0]
+                    accepted.append(pvalue)
+                # TODO: send(leader, ("p2b, self.node_id, self.ballot_num"))
 
 
 if __name__ == "__main__":
