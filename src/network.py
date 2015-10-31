@@ -4,6 +4,7 @@ import sys, socket
 
 class Network:
 
+    MASTER_BASE_PORT = 7000
     SERVER_BASE_PORT = 8000
     CLIENT_BASE_PORT = 9000
 
@@ -15,10 +16,13 @@ class Network:
 
         # create socket
         self.PRIVATE_TCP_IP = socket.gethostbyname(socket.gethostname())
-        self.is_server = True if uid[0] == 'S' else False
-        BASE_PORT = self.SERVER_BASE_PORT if self.is_server \
-               else self.CLIENT_BASE_PORT
-        TCP_PORT = self.node_id + BASE_PORT
+        if uid[0] == 'M': # Master
+            TCP_PORT = self.MASTER_BASE_PORT
+        else:
+            self.is_server = True if uid[0] == 'S' else False
+            BASE_PORT = self.SERVER_BASE_PORT if self.is_server \
+                   else self.CLIENT_BASE_PORT
+            TCP_PORT = self.node_id + BASE_PORT
         self.BUFFER_SIZE = 1024
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((self.PRIVATE_TCP_IP, TCP_PORT))
@@ -46,6 +50,15 @@ class Network:
                   sep="")
         except:
             print(self.uid, "connects to Client", dest_id, "failed")
+
+    def send_to_master(self, message):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((self.PRIVATE_TCP_IP, self.MASTER_BASE_PORT))
+            s.send(message.encode('ascii'))
+            print(self.uid, " sends <", message, "> to Master ", sep="")
+        except:
+            print(self.uid, "connects to Master", dest_id, "failed")
 
     def broadcast(self, message):
         for i in range(num_nodes):

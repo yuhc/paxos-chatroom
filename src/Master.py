@@ -3,14 +3,38 @@
 import fileinput
 import subprocess, sys, os, signal, time
 
+from network import Network
+
 SLEEP_TIME = 5
+uid = "Master#0"
+counter = 0 # number of ack needed to be received from clients
+
+def receive(self):
+    while 1:
+        buf = nt.receive()
+        if len(buf) > 0:
+            print(buf)
+            if buf == "messageHasBeenLogged":
+                counter = counter - 1
+
 
 if __name__ == "__main__":
+    # network controller
+    nt = Network(uid)
+    try:
+        t_recv = Thread(target=receive)
+        t_recv.start()
+    except:
+        print(uid, "error: unable to start new thread")
+
     nodes, clients, = [], []
     num_nodes, num_clients = 0, 0
     for line in fileinput.input():
         print("#", line.strip())
         line = line.split();
+        # wait all sendMessage be handled
+        while line[0] != "sendMessage" and counter > 0:
+            time.sleep(0.1)
 
         if line[0] == 'start':
             num_nodes = int(line[1])
@@ -37,6 +61,8 @@ if __name__ == "__main__":
             message = ''.join(str(item) for item in line[2::])
             """ Instruct the client specified by client_index to send the message
                 to the proper paxos node """
+            nt.send_to_client(client_index, "sendMessage " + message)
+            counter = counter + 1
 
         if line[0] == 'printChatLog':
             client_index = int(line[1])
@@ -70,10 +96,12 @@ if __name__ == "__main__":
                                           str(False),
                                           len(nodes)])
                     nodes[node_index] = p.pid
+                    print("Server#", i, " pid:", p.pid, sep="")
                 else:
                     print("Server#", line[1], " is alive", sep="")
             else:
                 print("Parameter <", line[1], "> is out of bound", sep="")
+                time.sleep(SLEEP_TIME) # ensure the establish of sockets
 
         if line[0] == 'timeBombLeader':
             num_messages = int(line[1])

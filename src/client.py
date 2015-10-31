@@ -31,7 +31,17 @@ class Client:
             buf = self.nt.receive()
             if len(buf) > 0:
                 # TODO: handle the received value
-                print("TODO")
+                print(buf)
+                buf = buf.split()
+                if buf[0] == "sendMessage":
+                    # TODO: send message to leader
+                    print(buf[0])
+                    self.nt.send_to_master("messageHasBeenLogged")
+                if buf[0] == "response":
+                    self.nt.send_to_master("messageHasBeenLogged")
+                if buf[0] == "heartbeat":
+                    # TODO: handle heartbeat
+                    print(buf[0])
 
 
 if __name__ == "__main__":
