@@ -22,10 +22,14 @@ class Server:
         # Leaders
         self.is_leader = is_leader
         if is_leader:
-            print(node_id, "is leader")
+            print(self.uid, "is leader")
         self.current_leader = -1
-        f = (num_nodes - 1) / 2
-        if (uid <= f):
+
+        # Replicas
+        max_faulty = (num_nodes - 1) / 2
+        if (nod_id <= max_faulty):
+            # f+1  servers are replicas
+            # 2f+1 (all)  servers are acceptors
             self.is_replica = True
             self.log_name = str(self.node_id) + ".log"
             self.slot_num = 1
@@ -42,8 +46,7 @@ class Server:
 
     def propose(proposal):
         if (exists(proposal, self.decisions) == None):
-            
-
+            # TODO: propose
 
 
 class Scout:
@@ -71,8 +74,6 @@ class Acceptor:
         while(1):
             # TODO: replace receive with actual receive
             msg = receive();
-            
-
 
 
 if __name__ == "__main__":
