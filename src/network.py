@@ -11,11 +11,15 @@ class Network:
     '''
     @uid has three different kinds: Master#0, Server#i and Client#j
     '''
-    def __init__(self, uid):
+    def __init__(self, uid, num_nodes = 0, num_clients = 0):
         # get id
         self.uid = uid
         uid_list = uid.split('#')
         self.node_id = int(uid_list[1])
+
+        # get number
+        self.num_nodes = num_nodes
+        self.num_clients = num_clients
 
         # create socket
         self.PRIVATE_TCP_IP = socket.gethostbyname(socket.gethostname())
@@ -32,6 +36,12 @@ class Network:
         self.server.listen(5)
         print(uid, " socket ", self.PRIVATE_TCP_IP, ":", TCP_PORT, " started",
               sep="")
+
+    def set_num_nodes(self, num_nodes):
+        self.num_nodes = num_nodes
+
+    def set_num_clients(self, num_clients):
+        self.num_clients = num_clients
 
     def send_to_server(self, dest_id, message):
         try:
@@ -63,9 +73,13 @@ class Network:
         except:
             print(self.uid, "connects to Master", dest_id, "failed")
 
-    def broadcast(self, message):
-        for i in range(num_nodes):
-            send_to_server(i, message)
+    def broadcast_to_server(self, message):
+        for i in range(self.num_nodes):
+            self.send_to_server(i, message)
+
+    def broadcast_to_client(self, message):
+        for i in range(self.num_clients):
+            self.send_to_client(i, message)
 
     def receive(self):
         connection, address = self.server.accept()

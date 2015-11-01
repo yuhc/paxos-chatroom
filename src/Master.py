@@ -11,19 +11,15 @@ PAUSE_TIME = 0.5
 
 if __name__ == "__main__":
     uid = "Master#0"
-    counter = 0 # number of ack needed to be received from clients
 
     # network controller
     nt = Network(uid)
     def receive():
         global nt
-        global counter
         while 1:
             buf = nt.receive()
             if len(buf) > 0:
                 print(uid, "handles", buf)
-                if buf == "messageHasBeenLogged":
-                    counter = counter - 1
 
     try:
         t_recv = Thread(target=receive)
@@ -37,13 +33,12 @@ if __name__ == "__main__":
     for line in fileinput.input():
         print("#", line.strip())
         line = line.split();
-        # wait all sendMessage be handled
-        while line[0] != "sendMessage" and counter > 0:
-            time.sleep(0.1)
 
         if line[0] == 'start':
             num_nodes = int(line[1])
             num_clients = int(line[2])
+            nt.set_num_nodes(num_nodes)
+            nt.set_num_clients(num_clients)
             """ start up the right number of nodes and clients, and store the
                 connections to them for sending further commands """
             for i in range(num_clients):
@@ -56,7 +51,7 @@ if __name__ == "__main__":
                 p = subprocess.Popen(["./node.py",
                                       str(i),
                                       str(True) if i == 0 else str(False),
-                                      str(num_nodes)])
+                                      str(num_nodes), str(num_clients)])
                 nodes.append(p.pid)
                 print("Server#", i, " pid:", p.pid, sep="")
             time.sleep(SLEEP_TIME) # ensure the establish of sockets
@@ -67,7 +62,6 @@ if __name__ == "__main__":
             """ Instruct the client specified by client_index to send the message
                 to the proper paxos node """
             nt.send_to_client(client_index, "sendMessage " + message)
-            counter = counter + 1
 
         if line[0] == 'printChatLog':
             client_index = int(line[1])
@@ -80,6 +74,8 @@ if __name__ == "__main__":
             """ Ensure that this blocks until all messages that are going to
                 come to consensus in PAXOS do, and that all clients have heard
                 of them """
+            nt.broadcast_to_client("allClear")
+            time.sleep(PAUSE_TIME)
 
         if line[0] == 'crashServer':
             node_index = int(line[1])
@@ -101,7 +97,7 @@ if __name__ == "__main__":
                     p = subprocess.Popen(["./node.py",
                                           line[1],
                                           str(False),
-                                          len(nodes)])
+                                          len(nodes), len(clients)])
                     nodes[node_index] = p.pid
                     print("Server#", i, " pid:", p.pid, sep="")
                 else:

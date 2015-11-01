@@ -17,10 +17,11 @@ class Server:
     @current_leader is updated when receiving heartbeat from the leader.
     Every server is a replica.
     '''
-    def __init__(self, node_id, is_leader, num_nodes):
+    def __init__(self, node_id, is_leader, num_nodes, num_clients):
         self.node_id = node_id
         self.uid = "Server#" +  str(node_id)
         self.num_nodes = num_nodes
+        self.num_clients = num_clients
 
         # Leaders
         self.is_leader = is_leader
@@ -28,7 +29,7 @@ class Server:
             print(self.uid, "is leader")
             self.leader_proposals = []
             self.leader_ballot_num = (0, self.node_id)
-            self.active = false
+            self.active = False
         self.current_leader = -1
 
         # Replicas
@@ -45,13 +46,12 @@ class Server:
             self.is_replica = False
 
         # network controller
-        self.nt = Network(self.uid)
+        self.nt = Network(self.uid, num_nodes, num_clients)
         try:
             self.t_recv = Thread(target=self.receive)
             self.t_recv.start()
         except:
             print(self.uid, "error: unable to start new thread")
-
 
     def exists_check_proposal(self, proposal, pair_set, compare):
         for (sn, p) in pair_set:
@@ -59,11 +59,10 @@ class Server:
                 if (compare):
                     if (sn < self.slot_num):
                         return True
-                else: 
+                else:
                     return True
         return False
 
-    
     def propose(self, proposal):
         if (not exists_check_proposal(proposal, self.decisions, False)):
             s = -1
@@ -84,7 +83,6 @@ class Server:
             # TODO: Send to leader
             # send(leader, (propose, (s, p)))
 
-
     def perform(self, p):
         if (exists_check_proposal(p, self.decisions, True)):
             self.slot_num = self.slot_num + 1
@@ -96,7 +94,7 @@ class Server:
             # send(p[0], ("response", p[1], "Done"))
 
     def broadcast_to_server(self, message):
-        self.nt.broadcast(message)
+        self.nt.broadcast_to_server(message)
 
     def send_to_server(self, dest_id, message):
         self.nt.send_to_server(dest_id, message)
@@ -125,6 +123,8 @@ class Server:
     def leader_operation(self, m):
         triple = literal_eval(m)
         if (triple[0] == "propose"):
+            # TODO: handles proposal
+            print(triple)
 
 
 class Scout:
@@ -149,7 +149,7 @@ class Scout:
             else:
                 # TODO: send(leader, ("preempted", str(triple[2])))
                 os._exit()
-        
+
 
 class Commander:
     def __init__(self, leader_id, num_nodes, pvalue, m):
@@ -184,7 +184,7 @@ class Acceptor:
     def run(self):
         triple = literal_eval(self.m)
 
-        if (triple[0] == "p1a"): 
+        if (triple[0] == "p1a"):
             if triple[2] > self.ballot_num:
                 self.ballot_num = triple[2]
             # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, "accepted"))
@@ -201,6 +201,7 @@ if __name__ == "__main__":
     node_id = int(cmd[1])
     is_leader = cmd[2] == "True"
     num_nodes = int(cmd[3])
-    s = Server(node_id, is_leader, num_nodes)
+    num_clients = int(cmd[4])
+    s = Server(node_id, is_leader, num_nodes, num_clients)
     print(s.uid, "started")
     s.t_recv.join()
