@@ -9,6 +9,8 @@ from network import Network
 
 class Server:
 
+    TIME_HEARTBEAT = 3
+
     '''
     @id: [0 .. num_nodes-1].
     @is_leader  is set to `True` when creating Server0, otherwise, to `False`.
@@ -47,11 +49,13 @@ class Server:
             # 2f+1 (all)  servers are acceptors
             self.is_replica = True
             self.replica = Replica(node_id, self.nt)
-            self.replica.set_leader(0) # TODO: this line should be deleted
         else:
             self.is_replica = False
 
         # TODO: leader broadcasts heartbeat
+        if is_leader:
+            time.sleep(2) # wait for other servers to start
+            self.send_heartbeat()
 
     def broadcast_to_server(self, message):
         self.nt.broadcast_to_server(message)
@@ -79,6 +83,9 @@ class Server:
                 # to leader
                 if (message[0] == "propose"):
                     self.leader_operation(message)
+                # to server
+                if (message[0] == "heartbeat"):
+                    self.receive_heartbeat(message)
 
     def replica_operation(self, message):
         # request from client:  ['request', (k, cid, message)]
@@ -93,6 +100,18 @@ class Server:
             # TODO: handles proposal
             print(message)
 
+    def send_heartbeat(self):
+        self.broadcast_to_server("'heartbeat', " + str(self.node_id))
+        threading.Timer(self.TIME_HEARTBEAT, self.send_heartbeat).start()
+
+    def receive_heartbeat(self, message):
+        # heartbeat from leader: ['heartbeat', leader_id]
+        self.current_leader = int(message[1])
+        if self.is_replica:
+            self.replica.set_leader(int(message[1]))
+        print("receive heartbeat from", message[1])
+        # TODO: add timeout timer
+        
 
 class Replica:
     '''

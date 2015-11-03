@@ -52,7 +52,7 @@ class Network:
                   sep="")
         except:
             print(self.uid, "connects to Server", dest_id, "failed")
-            print("Unexpected error:", sys.exc_info()[0])
+            # print("Unexpected error:", sys.exc_info()[0])
 
     def send_to_client(self, dest_id, message):
         try:
