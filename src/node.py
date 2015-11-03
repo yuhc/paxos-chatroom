@@ -30,6 +30,7 @@ class Server:
             self.leader = Leader(node_id)
             print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
+                                 # remember to update replica.leader_id
 
         # Replicas
         max_faulty = (num_nodes - 1) / 2 # f in the paper
@@ -59,26 +60,6 @@ class Server:
                     return True
         return False
 
-    def propose(self, proposal):
-        if (not exists_check_proposal(proposal, self.decisions, False)):
-            s = -1
-            all_pairs = itertools.chain(proposals, decisions)
-            sorted_all_pairs = sorted(all_pairs)
-            if (next(all_pairs, None) != None):
-                for sn, p in sorted_all_pairs:
-                    if (sn == s + 1):
-                        s = sn
-                    else:
-                        s = s + 1
-                        break
-                if s == sorted_all_pairs[-1][0]:
-                    s = s + 1
-            else:
-                s = 0
-            proposals.append((s, proposal))
-            # TODO: Send to leader
-            # send(leader, (propose, (s, p)))
-
     def perform(self, p):
         if (exists_check_proposal(p, self.decisions, True)):
             self.slot_num = self.slot_num + 1
@@ -102,8 +83,16 @@ class Server:
         while 1:
             buf = self.nt.receive()
             if len(buf) > 0:
-                # TODO: handle the received value
                 print(self.uid, "handles", buf)
+                # TODO: handle the received value
+                message = list(literal_eval(buf))
+
+                # to replica
+                if (message[0] == "request"):
+                    self.replica_operation(message)
+                # to leader
+                if (message[0] == "propose"):
+                    self.leader_operation(message)
 
     def replica_operation(self, m):
         triple = literal_evel(m)
@@ -116,9 +105,8 @@ class Server:
                     self.propose(p3)
                 self.perform(p)
 
-    def leader_operation(self, m):
-        triple = literal_eval(m)
-        if (triple[0] == "propose"):
+    def leader_operation(self, message):
+        if (message[0] == "propose"):
             # TODO: handles proposal
             print(triple)
 
@@ -133,6 +121,40 @@ class Replica:
         self.slot_num  = 1
         self.proposals = []
         self.decisions = []
+
+    def set_leader(self, leader_id):
+        self.leader_id = leader_id
+
+    def propose(self, proposal):
+        if (not is_in_set(proposal, self.decisions, False)):
+            all_pairs = proposals + decisions
+            list(set(all_pairs)) # remove duplicates
+            sorted_all_pairs = sorted(all_pairs, key=lambda x:x[0])
+            s = 1 # new minimum available slot
+            for (st, pt) in sorted_all_pairs:
+                if (st == s):
+                    continue
+                s = s + 1
+                if (st != s + 1):
+                    break
+            proposals.append((s, proposal))
+            # TODO: Send `propose (s, p)` to leader
+            self.nt.send_to_server(self.leader_id,
+                                   "propose, "+str((s,proposal)))
+
+    '''
+    check whether there exists any <s, @proposal> in @pair_set
+    @cmp_slot: True if need check s < @self.slot_num
+    '''
+    def is_in_set(self, proposal, pair_set, cmp_slot):
+        for (s, p) in pair_set:
+            if proposal == p:
+                if (cmp_slot):
+                    if (s < self.slot_num):
+                        return True
+                else:
+                    return True
+        return False
 
 
 class Leader:
