@@ -37,6 +37,7 @@ class Client:
 
     def send_request(self, triple):
         encode = " ".join(triple)
+        # maybe we should broadcast to all replicas or servers
         self.send(self.leader_id, encode)
 
     def period_request(self):
@@ -53,6 +54,7 @@ class Client:
                 buf = buf.split()
 
                 # send request to server (leader)
+                # should we send requests to all replicas?
                 if buf[0] == "sendMessage":
                     self.command_id = self.command_id + 1
                     triple = [str(self.client_id), str(self.command_id), buf[1]]
