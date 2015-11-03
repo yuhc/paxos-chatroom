@@ -11,9 +11,10 @@ class Server:
 
     '''
     @id: [0 .. num_nodes-1].
-    @is_leader is set to `True` when creating Server0, otherwise, to `False`.
-    @num_nodes is used to identify the broadcast range.
-    @uid is used for printing the messages.
+    @is_leader  is set to `True` when creating Server0, otherwise, to `False`.
+    @is_replica is set to `True` if node_id is less than f+1
+    @num_nodes  is used to identify the broadcast range.
+    @uid        is used for printing the messages.
     @current_leader is updated when receiving heartbeat from the leader.
     Every server is a replica.
     '''
@@ -26,22 +27,17 @@ class Server:
         # Leaders
         self.is_leader = is_leader
         if is_leader:
+            self.leader = Leader(node_id)
             print(self.uid, "is leader")
-            self.leader_proposals = []
-            self.leader_ballot_num = (0, self.node_id)
-            self.active = False
-        self.current_leader = -1
+        self.current_leader = -1 # updated when receiving leader's heartbeat
 
         # Replicas
-        max_faulty = (num_nodes - 1) / 2
+        max_faulty = (num_nodes - 1) / 2 # f in the paper
         if (node_id <= max_faulty):
             # f+1  servers are replicas
             # 2f+1 (all)  servers are acceptors
             self.is_replica = True
-            self.log_name = "server_" + str(self.node_id) + ".log"
-            self.slot_num = 1
-            self.proposals = []
-            self.decisions = []
+            self.replica = Replica(node_id)
         else:
             self.is_replica = False
 
@@ -127,14 +123,40 @@ class Server:
             print(triple)
 
 
+class Replica:
+    '''
+    @state is trivial in this implementation
+    '''
+    def __init__(self, node_id):
+        self.node_id   = node_id
+        self.log_name  = "server_" + str(node_id) + ".log"
+        self.slot_num  = 1
+        self.proposals = []
+        self.decisions = []
+
+
+class Leader:
+    '''
+    @self.node_id:    self()
+    @self.ballot_num: initially (0, self())
+    @self.active:     initially false
+    @self.proposals:  initially empty
+    '''
+    def __init__(self, node_id):
+        self.node_id    = node_id
+        self.active     = False
+        self.proposals  = []
+        self.ballot_num = (0, node_id)
+
+
 class Scout:
     def __init__(self, leader_id, num_nodes, b, m):
-        self.leader_id = leader_id
+        self.leader_id  = leader_id
         self.ballot_num = b
-        self.pvalues = []
-        self.waitfor = set(range(0, num_nodes))
-        self.m = m
-        self.num_nodes = num_nodes
+        self.pvalues    = []
+        self.waitfor    = set(range(0, num_nodes))
+        self.m          = m
+        self.num_nodes  = num_nodes
 
     def run(self):
         # TODO: for all acceptors send(a, ("p1a", self.node_id, self.ballot_num))
