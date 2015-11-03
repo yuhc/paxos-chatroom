@@ -53,28 +53,11 @@ class Server:
 
         # TODO: leader broadcasts heartbeat
 
-    def exists_check_proposal(self, proposal, pair_set, compare):
-        for (sn, p) in pair_set:
-            if proposal == p:
-                if (compare):
-                    if (sn < self.slot_num):
-                        return True
-                else:
-                    return True
-        return False
-
-    def perform(self, p):
-        if (exists_check_proposal(p, self.decisions, True)):
-            self.slot_num = self.slot_num + 1
-        else:
-            self.slot_num = self.slot_num + 1
-            with open(self.log, 'a') as f:
-                f.write(p[3])
-            # TODO: send client response
-            # send(p[0], ("response", p[1], "Done"))
-
     def broadcast_to_server(self, message):
         self.nt.broadcast_to_server(message)
+
+    def broadcast_to_client(self, message):
+        self.nt.broadcast_to_client(message)
 
     def send_to_server(self, dest_id, message):
         self.nt.send_to_server(dest_id, message)
@@ -91,22 +74,19 @@ class Server:
                 message = list(literal_eval(buf))
 
                 # to replica
-                if (message[0] == "request"):
+                if (message[0] in ['request', 'decision']):
                     self.replica_operation(message)
                 # to leader
                 if (message[0] == "propose"):
                     self.leader_operation(message)
 
     def replica_operation(self, message):
-        # request from client: ['request', (k, cid, message)]
+        # request from client:  ['request', (k, cid, message)]
         if (message[0] == "request"):
             self.replica.propose(message[1])
+        # decision from leader: ['decision', (slot_num, proposal)]
         elif (message[0] == "decision"):
-            self.decisions.append((message[1], message[2]))
-            for (sn, p) in [(ss, pp) for (ss, pp) in self.decisions if ss == self.slot_num]:
-                for (snn, p3) in [(s3, p4) for (s3, p4) in self.proposals if p4 != p]:
-                    self.propose(p3)
-                self.perform(p)
+            self.replica.decide(message[1])
 
     def leader_operation(self, message):
         if (message[0] == "propose"):
@@ -129,6 +109,18 @@ class Replica:
     def set_leader(self, leader_id):
         self.leader_id = leader_id
 
+    def decide(self, decision):
+        # dec = (slot_num, proposal)
+        self.decisions.append(decision)
+        flt1 = filter(lambda x: x[0] == self.slot_num, self.decisions)
+        while flt1:
+            p1 = flt1[0][1]
+            flt2 = filter(lambda x: x in self.proposals and x[1] != p1, flt1)
+            if flt2:
+                self.propose(flt2[0][1]) # repropose
+            self.perform(p1)
+            flt1 = filter(lambda x: x[0] == self.slot_num, self.decisions)
+
     def propose(self, proposal):
         if (not self.is_in_set(proposal, self.decisions, False)):
             all_pairs = self.proposals + self.decisions
@@ -143,22 +135,31 @@ class Replica:
                     break
             self.proposals.append((s, proposal))
             # send `propose, (s, p)` to leader
-            self.nt.send_to_server(self.leader_id,
-                                   "'propose', "+str((s,proposal)))
+            self.send_to_server(self.leader_id,
+                                "'propose', "+str((s,proposal)))
+
+    def perform(self, proposal):
+        if (self.is_in_set(proposal, self.decisions, True)):
+            self.slot_num = self.slot_num + 1
+        else:
+            self.slot_num = self.slot_num + 1
+            # TODO: maybe not necessary to log
+            with open(self.log_name, 'a') as f:
+                f.write(proposal[3])
+            # send `response, (cid, result)` to client
+            self.broadcast_to_client(p[0], str("'response', ", (p[1], "Done")))
 
     '''
     check whether there exists any <s, @proposal> in @pair_set
     @cmp_slot: True if need check s < @self.slot_num
     '''
     def is_in_set(self, proposal, pair_set, cmp_slot):
-        for (s, p) in pair_set:
-            if proposal == p:
-                if (cmp_slot):
-                    if (s < self.slot_num):
-                        return True
-                else:
-                    return True
-        return False
+        if cmp_slot:
+            flt = filter(lambda x: x[1] == proposal and x[0] < self.slot_num,
+                         pair_set)
+        else:
+            flt = filter(lambda x: x[1] == proposal, pair_set)
+        return bool(flt)
 
 
 class Leader:
