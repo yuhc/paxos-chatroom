@@ -24,6 +24,14 @@ class Server:
         self.num_nodes = num_nodes
         self.num_clients = num_clients
 
+        # network controller
+        self.nt = Network(self.uid, num_nodes, num_clients)
+        try:
+            self.t_recv = Thread(target=self.receive)
+            self.t_recv.start()
+        except:
+            print(self.uid, "error: unable to start new thread")
+
         # Leaders
         self.is_leader = is_leader
         if is_leader:
@@ -38,17 +46,12 @@ class Server:
             # f+1  servers are replicas
             # 2f+1 (all)  servers are acceptors
             self.is_replica = True
-            self.replica = Replica(node_id)
+            self.replica = Replica(node_id, self.nt)
+            self.replica.set_leader(0) # TODO: this line should be deleted
         else:
             self.is_replica = False
 
-        # network controller
-        self.nt = Network(self.uid, num_nodes, num_clients)
-        try:
-            self.t_recv = Thread(target=self.receive)
-            self.t_recv.start()
-        except:
-            print(self.uid, "error: unable to start new thread")
+        # TODO: leader broadcasts heartbeat
 
     def exists_check_proposal(self, proposal, pair_set, compare):
         for (sn, p) in pair_set:
@@ -94,12 +97,12 @@ class Server:
                 if (message[0] == "propose"):
                     self.leader_operation(message)
 
-    def replica_operation(self, m):
-        triple = literal_evel(m)
-        if (triple[0] == "request"):
-            self.propose(triple[1])
-        elif (triple[0] == "decision"):
-            self.decisions.append((triple[1], triple[2]))
+    def replica_operation(self, message):
+        # request from client: ['request', (k, cid, message)]
+        if (message[0] == "request"):
+            self.replica.propose(message[1])
+        elif (message[0] == "decision"):
+            self.decisions.append((message[1], message[2]))
             for (sn, p) in [(ss, pp) for (ss, pp) in self.decisions if ss == self.slot_num]:
                 for (snn, p3) in [(s3, p4) for (s3, p4) in self.proposals if p4 != p]:
                     self.propose(p3)
@@ -108,26 +111,27 @@ class Server:
     def leader_operation(self, message):
         if (message[0] == "propose"):
             # TODO: handles proposal
-            print(triple)
+            print(message)
 
 
 class Replica:
     '''
     @state is trivial in this implementation
     '''
-    def __init__(self, node_id):
+    def __init__(self, node_id, nt):
         self.node_id   = node_id
         self.log_name  = "server_" + str(node_id) + ".log"
         self.slot_num  = 1
         self.proposals = []
         self.decisions = []
+        self.nt = nt
 
     def set_leader(self, leader_id):
         self.leader_id = leader_id
 
     def propose(self, proposal):
-        if (not is_in_set(proposal, self.decisions, False)):
-            all_pairs = proposals + decisions
+        if (not self.is_in_set(proposal, self.decisions, False)):
+            all_pairs = self.proposals + self.decisions
             list(set(all_pairs)) # remove duplicates
             sorted_all_pairs = sorted(all_pairs, key=lambda x:x[0])
             s = 1 # new minimum available slot
@@ -137,10 +141,10 @@ class Replica:
                 s = s + 1
                 if (st != s + 1):
                     break
-            proposals.append((s, proposal))
-            # TODO: Send `propose (s, p)` to leader
+            self.proposals.append((s, proposal))
+            # send `propose, (s, p)` to leader
             self.nt.send_to_server(self.leader_id,
-                                   "propose, "+str((s,proposal)))
+                                   "'propose', "+str((s,proposal)))
 
     '''
     check whether there exists any <s, @proposal> in @pair_set

@@ -36,7 +36,7 @@ class Client:
         self.nt.send_to_server(dest_id, message)
 
     def send_request(self, triple):
-        encode = " ".join(triple)
+        encode = "'request', " + str(triple)
         # maybe we should broadcast to all replicas or servers
         self.send(self.leader_id, encode)
 
@@ -57,7 +57,7 @@ class Client:
                 # should we send requests to all replicas?
                 if buf[0] == "sendMessage":
                     self.command_id = self.command_id + 1
-                    triple = [str(self.client_id), str(self.command_id), buf[1]]
+                    triple = (self.client_id, self.command_id, buf[1])
                     self.queue.append(triple)
                     self.send_request(triple)
 
@@ -90,5 +90,4 @@ if __name__ == "__main__":
     c = Client(node_id, num_nodes)
     print(c.uid, "started")
     time.sleep(3)    # this line is for debug
-    c.send(0, 'aaa') # this line is for debug
     c.t_recv.join()
