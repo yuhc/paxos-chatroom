@@ -3,9 +3,9 @@
 import threading, sys, itertools, os, time
 
 from threading import Thread, Lock
-from ast import literal_eval
+from ast       import literal_eval
 
-from network import Network
+from network   import Network
 
 class Server:
 
@@ -77,7 +77,6 @@ class Server:
         while 1:
             buf = self.nt.receive()
             if len(buf) > 0:
-                print(self.uid, "handles", buf)
                 # TODO: handle the received value
                 message = list(literal_eval(buf))
 
@@ -91,7 +90,10 @@ class Server:
                 if (message[0] == "heartbeat"):
                     self.receive_heartbeat(message)
                 if (message[0] == "election"):
-                    self.broadcast_to_server("'heartbeat', " + str(self.node_id))
+                    self.broadcast_to_server("'heartbeat', "+str(self.node_id))
+                if (message[0] == "timeBombLeader"):
+                    if (self.is_leader):
+                        self.nt.set_remain_message(int(message[1]))
 
     def replica_operation(self, message):
         # request from client:  ['request', (k, cid, message)]
@@ -125,6 +127,7 @@ class Server:
             self.view_num = candidate
             if self.current_leader != self.node_id:
                 self.is_leader = False
+                self.nt.set_remain_message()
             else:
                 self.is_leader = True
                 try:
@@ -135,9 +138,12 @@ class Server:
                 self.broadcast_heartbeat()
             if self.is_replica:
                 self.replica.set_leader(candidate)
-            print(self.uid, " updates Server#", candidate,
-                  " as leader", sep="")
+            print(self.uid, " updates Server#", candidate, " as leader", sep="")
 
+    '''
+    Starts leader election whenever the leader's heartbeat
+    timeouts.
+    '''
     def check_heartbeat(self):
         if (not self.is_leader) and (not self.rev_heartbeat):
             # TODO: leader election
@@ -148,8 +154,7 @@ class Server:
             self.send_to_server(self.view_num,
                                 "'election', "+str(self.view_num))
         self.rev_heartbeat = False
-        threading.Timer(self.TIME_HEARTBEAT,
-                        self.check_heartbeat).start()
+        threading.Timer(self.TIME_HEARTBEAT, self.check_heartbeat).start()
 
 
 class Replica:
@@ -240,7 +245,7 @@ class Scout:
         self.pvalues    = set()
         self.waitfor    = set(range(0, num_nodes))
         self.m          = m
-        self.num_nodes  = num_nodes
+        self.num_nodes  = num_nodes # number of acceptors
 
     def run(self):
         # TODO: for all acceptors send(a, ("p1a", self.node_id, self.ballot_num))

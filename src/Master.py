@@ -17,6 +17,7 @@ if __name__ == "__main__":
     nt = Network(uid)
     def receive():
         global nt
+        global leader_id
         while 1:
             buf = nt.receive()
             if len(buf) > 0:
@@ -54,6 +55,7 @@ if __name__ == "__main__":
                                       str(True) if i == 0 else str(False),
                                       str(num_nodes), str(num_clients)])
                 nodes.append(p.pid)
+                leader_id = 0
                 print("Server#", i, " pid:", p.pid, sep="")
             time.sleep(SLEEP_TIME) # ensure the establish of sockets
 
@@ -111,6 +113,7 @@ if __name__ == "__main__":
             num_messages = int(line[1])
             """ Instruct the leader to crash after sending the number of paxos
                 related messages specified by num_messages """
+            nt.broadcast_to_server("'timeBombLeader', " + line[1])
 
 
     # kill the remained nodes and clients

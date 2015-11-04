@@ -50,7 +50,6 @@ class Client:
             buf = self.nt.receive()
             if len(buf) > 0:
                 # TODO: handle the received value
-                print(self.uid, "handles", buf)
                 buf = buf.split()
 
                 # send request to server (leader)

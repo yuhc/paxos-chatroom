@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-import sys, socket
+import sys, socket, os, signal
+from ast import literal_eval
 
 class Network:
 
@@ -20,6 +21,9 @@ class Network:
         # get number
         self.num_nodes = num_nodes
         self.num_clients = num_clients
+
+        # timeBombLeader
+        self.remain_message = -1 # -1 means infinity
 
         # create socket
         self.PRIVATE_TCP_IP = socket.gethostbyname(socket.gethostname())
@@ -44,6 +48,16 @@ class Network:
     def set_num_clients(self, num_clients):
         self.num_clients = num_clients
 
+    def set_remain_message(self, r_message=-1):
+        self.remain_message = r_message
+
+    def check_remain_message(self):
+        if self.remain_message > 0:
+            self.remain_message = self.remain_message - 1
+            if self.remain_message <= 0:
+                print(self.uid, "bombs")
+                os.kill(os.getpid(), signal.SIGKILL)
+
     def send_to_server(self, dest_id, message):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -54,6 +68,11 @@ class Network:
         except:
             print(self.uid, "connects to Server", dest_id, "failed")
             # print("Unexpected error:", sys.exc_info()[0])
+        try:
+            if literal_eval(message)[0] != "heartbeat":
+                self.check_remain_message()
+        except:
+            self.check_remain_message()
 
     def send_to_client(self, dest_id, message):
         try:
@@ -64,6 +83,11 @@ class Network:
                   sep="")
         except:
             print(self.uid, "connects to Client", dest_id, "failed")
+        try:
+            if literal_eval(message)[0] != "heartbeat":
+                self.check_remain_message()
+        except:
+            self.check_remain_message()
 
     def send_to_master(self, message):
         try:
