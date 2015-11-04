@@ -84,8 +84,14 @@ class Server:
                 if (message[0] in ['request', 'decision']):
                     self.replica_operation(message)
                 # to leader
-                if (message[0] == "propose"):
+                if (message[0] in ['propose', 'adopted', 'preempted']):
                     self.leader_operation(message)
+                # to scout
+                if (message[0] == "p1b"):
+                    self.scout_operation(message)
+                # to commander
+                if (message[0] == "p2b"):
+                    self.commander_operation(message)
                 # to server
                 if (message[0] == "heartbeat"):
                     self.receive_heartbeat(message)
@@ -106,6 +112,18 @@ class Server:
     def leader_operation(self, message):
         if (message[0] == "propose"):
             # TODO: handles proposal
+            print(message)
+
+    def scout_operation(self, message):
+        # p1b from acceptor: ['p1b', sender_id, ballot_num, accepted]
+        if (message[0] == "p1b"):
+            # TODO: handler
+            print(message)
+
+    def commander_operation(self, message):
+        # p2b from acceptor: ['p2b', sender_id, ballot_num]
+        if (message[0] == "p2b"):
+            # TODO: handler
             print(message)
 
     def broadcast_heartbeat(self):
@@ -305,14 +323,16 @@ class Acceptor:
             if triple[2] > self.ballot_num:
                 self.ballot_num = triple[2]
             # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, self.accepted))
-            self.send_to_server(self.leader_id, str(("p1b", self.node_id, self.ballot_num, tuple(self.accepted))))
+            self.send_to_server(self.leader_id,
+              str(("p1b", self.node_id, self.ballot_num, tuple(self.accepted))))
         elif (triple[0] == "p2a"):
             pvalue = triplep[2]
             if pvalue[0] >= self.ballot_num:
                 ballot_num = pvalue[0]
                 accepted.add(pvalue)
             # TODO: send(leader, ("p2b, self.node_id, self.ballot_num"))
-            self.send_to_server(self.leader_id, str(("p2b", self.node_id, self.ballot_num)))
+            self.send_to_server(self.leader_id,
+              str(("p2b", self.node_id, self.ballot_num)))
 
 
 if __name__ == "__main__":
