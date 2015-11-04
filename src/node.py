@@ -116,9 +116,7 @@ class Server:
 
     def scout_operation(self, message):
         # p1b from acceptor: ['p1b', sender_id, ballot_num, accepted]
-        if (message[0] == "p1b"):
-            # TODO: handler
-            print(message)
+        self.scout = Scout(self.current_leader, self.num_nodes, self.leader.)
 
     def commander_operation(self, message):
         # p2b from acceptor: ['p2b', sender_id, ballot_num]
