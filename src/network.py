@@ -32,6 +32,7 @@ class Network:
             TCP_PORT = self.node_id + BASE_PORT
         self.BUFFER_SIZE = 1024
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.PRIVATE_TCP_IP, TCP_PORT))
         self.server.listen(5)
         print(uid, " socket ", self.PRIVATE_TCP_IP, ":", TCP_PORT, " started",

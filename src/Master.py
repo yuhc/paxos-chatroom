@@ -8,6 +8,7 @@ from network import Network
 
 SLEEP_TIME = 5
 PAUSE_TIME = 0.5
+CLEAR_TIME = 10
 
 if __name__ == "__main__":
     uid = "Master#0"
@@ -75,7 +76,7 @@ if __name__ == "__main__":
                 come to consensus in PAXOS do, and that all clients have heard
                 of them """
             nt.broadcast_to_client("allClear")
-            time.sleep(PAUSE_TIME)
+            time.sleep(CLEAR_TIME)
 
         if line[0] == 'crashServer':
             node_index = int(line[1])
@@ -97,7 +98,7 @@ if __name__ == "__main__":
                     p = subprocess.Popen(["./node.py",
                                           line[1],
                                           str(False),
-                                          len(nodes), len(clients)])
+                                          str(len(nodes)), str(len(clients))])
                     nodes[node_index] = p.pid
                     print("Server#", i, " pid:", p.pid, sep="")
                 else:
@@ -113,6 +114,7 @@ if __name__ == "__main__":
 
 
     # kill the remained nodes and clients
+    time.sleep(10)
     for i in range(num_nodes):
         if nodes[i] != None:
             os.kill(nodes[i], signal.SIGKILL)

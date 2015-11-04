@@ -77,11 +77,6 @@ class Client:
                     # TODO: remove the message from self.queue
                     self.nt.send_to_master("messageHasBeenLogged")
 
-                # receive heartbeat
-                if buf[0] == "heartbeat":
-                    # TODO: handle heartbeat
-                    print(buf[0])
-
 
 if __name__ == "__main__":
     cmd = sys.argv

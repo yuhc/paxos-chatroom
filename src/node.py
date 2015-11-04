@@ -40,7 +40,8 @@ class Server:
             self.leader = Leader(node_id)
             print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
-                                 # remember to update replica.leader_id
+                                 # remember to update replica.leader_id and leader
+        self.view_num = 0 # the id of candidate leader
 
         # Replicas
         max_faulty = (num_nodes - 1) / 2 # f in the paper
@@ -53,9 +54,12 @@ class Server:
             self.is_replica = False
 
         # TODO: leader broadcasts heartbeat
+        self.rev_heartbeat = True # whether receive heartbeat in current period
         if is_leader:
             time.sleep(2) # wait for other servers to start
-            self.send_heartbeat()
+            self.broadcast_heartbeat()
+        self.check_heartbeat()
+
 
     def broadcast_to_server(self, message):
         self.nt.broadcast_to_server(message)
@@ -86,6 +90,8 @@ class Server:
                 # to server
                 if (message[0] == "heartbeat"):
                     self.receive_heartbeat(message)
+                if (message[0] == "election"):
+                    self.broadcast_to_server("'heartbeat', " + str(self.node_id))
 
     def replica_operation(self, message):
         # request from client:  ['request', (k, cid, message)]
@@ -100,18 +106,43 @@ class Server:
             # TODO: handles proposal
             print(message)
 
-    def send_heartbeat(self):
-        self.broadcast_to_server("'heartbeat', " + str(self.node_id))
-        threading.Timer(self.TIME_HEARTBEAT, self.send_heartbeat).start()
+    def broadcast_heartbeat(self):
+        if self.is_leader: # others may be elected
+            self.broadcast_to_server("'heartbeat', " + str(self.node_id))
+            threading.Timer(self.TIME_HEARTBEAT, self.broadcast_heartbeat).start()
 
     def receive_heartbeat(self, message):
         # heartbeat from leader: ['heartbeat', leader_id]
-        self.current_leader = int(message[1])
-        if self.is_replica:
-            self.replica.set_leader(int(message[1]))
-        print("receive heartbeat from", message[1])
-        # TODO: add timeout timer
-        
+        candidate = int(message[1])
+        if (self.current_leader < 0) or \
+           (self.is_leader and candidate <= self.node_id):
+            self.current_leader = candidate
+            self.view_num = 0
+            if self.current_leader != self.node_id:
+                self.is_leader = False
+            else:
+                self.is_leader = True
+                try:
+                    self.leader
+                except:
+                    self.leader = Leader(self.node_id)
+            if self.is_replica:
+                self.replica.set_leader(candidate)
+            print(self.uid, " updates Server#", candidate, " as leader", sep="")
+
+        self.rev_heartbeat = True
+        print(self.uid, "receive heartbeat from", message[1])
+
+    def check_heartbeat(self):
+        if (not self.is_leader) and (not self.rev_heartbeat):
+            # TODO: leader election
+            print(self.uid, " starts election Server#", self.view_num, sep="")
+            self.current_leader = -1
+            self.send_to_server(self.view_num, "'election', " + str(self.view_num))
+            self.view_num = (self.view_num + 1) % self.node_id
+        self.rev_heartbeat = False
+        threading.Timer(self.TIME_HEARTBEAT, self.check_heartbeat).start()
+
 
 class Replica:
     '''
