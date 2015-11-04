@@ -152,8 +152,8 @@ class Replica:
         self.node_id   = node_id
         self.log_name  = "server_" + str(node_id) + ".log"
         self.slot_num  = 1
-        self.proposals = []
-        self.decisions = []
+        self.proposals = set()
+        self.decisions = set()
         self.nt = nt
 
     def set_leader(self, leader_id):
@@ -161,7 +161,7 @@ class Replica:
 
     def decide(self, decision):
         # dec = (slot_num, proposal)
-        self.decisions.append(decision)
+        self.decisions.add(decision)
         flt1 = filter(lambda x: x[0] == self.slot_num, self.decisions)
         while flt1:
             p1 = flt1[0][1]
@@ -173,9 +173,8 @@ class Replica:
 
     def propose(self, proposal):
         if (not self.is_in_set(proposal, self.decisions, False)):
-            all_pairs = self.proposals + self.decisions
-            list(set(all_pairs)) # remove duplicates
-            sorted_all_pairs = sorted(all_pairs, key=lambda x:x[0])
+            all_pairs = self.proposals.union(self.decisions)
+            sorted_all_pairs = sorted(list(all_pairs), key=lambda x:x[0])
             s = 1 # new minimum available slot
             for (st, pt) in sorted_all_pairs:
                 if (st == s):
@@ -183,10 +182,10 @@ class Replica:
                 s = s + 1
                 if (st != s + 1):
                     break
-            self.proposals.append((s, proposal))
+            self.proposals.add((s, proposal))
             # send `propose, (s, p)` to leader
             self.send_to_server(self.leader_id,
-                                "'propose', "+str((s,proposal)))
+                                str(("propose", s, proposal)))
 
     def perform(self, proposal):
         if (self.is_in_set(proposal, self.decisions, True)):
@@ -197,7 +196,7 @@ class Replica:
             with open(self.log_name, 'a') as f:
                 f.write(proposal[3])
             # send `response, (cid, result)` to client
-            self.broadcast_to_client(p[0], str("'response', ", (p[1], "Done")))
+            self.broadcast_to_client(p[0], str(("response", p[1], "Done")))
 
     '''
     check whether there exists any <s, @proposal> in @pair_set
@@ -223,14 +222,14 @@ class Leader:
         self.node_id    = node_id
         self.active     = False
         self.proposals  = []
-        self.ballot_num = (0, node_id)
+        self.ballot_num = 0
 
 
 class Scout:
     def __init__(self, leader_id, num_nodes, b, m):
         self.leader_id  = leader_id
         self.ballot_num = b
-        self.pvalues    = []
+        self.pvalues    = set()
         self.waitfor    = set(range(0, num_nodes))
         self.m          = m
         self.num_nodes  = num_nodes
@@ -240,13 +239,17 @@ class Scout:
         triple = literal_eval(self.m)
         if (triple[0] == "p1b"):
             if (triple[2] == self.ballot_num):
-                self.pvalues.append(triple[3])
+                for item in triple[3]:
+                    self.pvalues.add(item)
                 self.waitfor.remove(triple[1])
                 if (len(self.waitfor) < num_nodes /2):
                     # TODO: send(leader, ("adopted", self.ballot_num, str(self.pvalues)))
+                    self.send_to_server(self.leader_id,
+                                        str(("adopted", self.ballot_num, self.pvalues)))
                     os._exit()
             else:
                 # TODO: send(leader, ("preempted", str(triple[2])))
+                self.send_to_server(self.leader_id, str(("preempted", triple[2])))
                 os._exit()
 
 
@@ -268,15 +271,17 @@ class Commander:
                 self.waitfor.remove(triple[1])
                 if (len(self.waitfor) < num_nodes / 2):
                     # TODO: for all replicas send(p, ("decision", self.slot_num, self.proposal))
+                    self.broadcast_to_server("'decision', "+str((self.slot_num, self.proposal)))
                     os._exit()
             else:
                 # TODO: send(leader, ("preempted, triple[2]"))
+                self.send_to_server(self.leader_id, str(("preempted, triple[2]")))
                 os._exit()
 
 
 class Acceptor:
     def __init__(self, m):
-        self.accepted = []
+        self.accepted = set()
         self.ballot_num = -1;
         self.m = m
 
@@ -286,13 +291,15 @@ class Acceptor:
         if (triple[0] == "p1a"):
             if triple[2] > self.ballot_num:
                 self.ballot_num = triple[2]
-            # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, "accepted"))
+            # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, self.accepted))
+            self.send_to_server(self.leader_id, str(("p1b", self.node_id, self.ballot_num, tuple(self.accepted))))
         elif (triple[0] == "p2a"):
             pvalue = triplep[2]
             if pvalue[0] >= self.ballot_num:
                 ballot_num = pvalue[0]
-                accepted.append(pvalue)
+                accepted.add(pvalue)
             # TODO: send(leader, ("p2b, self.node_id, self.ballot_num"))
+            self.send_to_server(self.leader_id, str(("p2b", self.node_id, self.ballot_num)))
 
 
 if __name__ == "__main__":
