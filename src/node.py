@@ -274,12 +274,12 @@ class Scout:
                     self.pvalues.add(item)
                 self.waitfor.remove(triple[1])
                 if (len(self.waitfor) < num_nodes /2):
-                    # TODO: send(leader, ("adopted", self.ballot_num, str(self.pvalues)))
+                    # send ("adopted", self.ballot_num, tuple(self.pvalues)) to leader
                     self.send_to_server(self.leader_id,
-                                        str(("adopted", self.ballot_num, self.pvalues)))
+                                        str(("adopted", self.ballot_num, tuple(self.pvalues))))
                     os._exit()
             else:
-                # TODO: send(leader, ("preempted", str(triple[2])))
+                # send ("preempted", triple[2]) to leader
                 self.send_to_server(self.leader_id, str(("preempted", triple[2])))
                 os._exit()
 
@@ -301,11 +301,11 @@ class Commander:
             if (self.ballot_num == triple[2]):
                 self.waitfor.remove(triple[1])
                 if (len(self.waitfor) < num_nodes / 2):
-                    # TODO: for all replicas send(p, ("decision", self.slot_num, self.proposal))
+                    # send 'decision', (self.slot_num, self.proposal) to all replicas
                     self.broadcast_to_server("'decision', "+str((self.slot_num, self.proposal)))
                     os._exit()
             else:
-                # TODO: send(leader, ("preempted, triple[2]"))
+                # send ("preempted, triple[2]") to leader
                 self.send_to_server(self.leader_id, str(("preempted, triple[2]")))
                 os._exit()
 
@@ -322,7 +322,7 @@ class Acceptor:
         if (triple[0] == "p1a"):
             if triple[2] > self.ballot_num:
                 self.ballot_num = triple[2]
-            # TODO: send(leader, ("p1b", self.node_id, self.ballot_num, self.accepted))
+            # send ("p1b", self.node_id, self.ballot_num, self.accepted) to leader
             self.send_to_server(self.leader_id,
               str(("p1b", self.node_id, self.ballot_num, tuple(self.accepted))))
         elif (triple[0] == "p2a"):
@@ -330,7 +330,7 @@ class Acceptor:
             if pvalue[0] >= self.ballot_num:
                 ballot_num = pvalue[0]
                 accepted.add(pvalue)
-            # TODO: send(leader, ("p2b, self.node_id, self.ballot_num"))
+            # send ("p2b, self.node_id, self.ballot_num") to leader
             self.send_to_server(self.leader_id,
               str(("p2b", self.node_id, self.ballot_num)))
 
