@@ -108,16 +108,21 @@ class Server:
 
     def broadcast_heartbeat(self):
         if self.is_leader: # others may be elected
-            self.broadcast_to_server("'heartbeat', " + str(self.node_id))
-            threading.Timer(self.TIME_HEARTBEAT, self.broadcast_heartbeat).start()
+            self.broadcast_to_server("'heartbeat', "
+                                     + str(self.node_id))
+            threading.Timer(self.TIME_HEARTBEAT,
+                            self.broadcast_heartbeat).start()
 
     def receive_heartbeat(self, message):
         # heartbeat from leader: ['heartbeat', leader_id]
+        self.rev_heartbeat = True
+        print(self.uid, "receive heartbeat from", message[1])
+
         candidate = int(message[1])
         if (self.current_leader < 0) or \
-           (self.is_leader and candidate <= self.node_id):
+           (self.is_leader and candidate < self.node_id):
             self.current_leader = candidate
-            self.view_num = 0
+            self.view_num = candidate
             if self.current_leader != self.node_id:
                 self.is_leader = False
             else:
@@ -126,22 +131,25 @@ class Server:
                     self.leader
                 except:
                     self.leader = Leader(self.node_id)
+                print(self.uid, "starts heartbeat")
+                self.broadcast_heartbeat()
             if self.is_replica:
                 self.replica.set_leader(candidate)
-            print(self.uid, " updates Server#", candidate, " as leader", sep="")
-
-        self.rev_heartbeat = True
-        print(self.uid, "receive heartbeat from", message[1])
+            print(self.uid, " updates Server#", candidate,
+                  " as leader", sep="")
 
     def check_heartbeat(self):
         if (not self.is_leader) and (not self.rev_heartbeat):
             # TODO: leader election
-            print(self.uid, " starts election Server#", self.view_num, sep="")
+            print(self.uid, " starts election Server#",
+                  self.view_num, sep="")
             self.current_leader = -1
-            self.send_to_server(self.view_num, "'election', " + str(self.view_num))
-            self.view_num = (self.view_num + 1) % self.node_id
+            self.view_num = (self.view_num + 1) % self.num_nodes
+            self.send_to_server(self.view_num,
+                                "'election', "+str(self.view_num))
         self.rev_heartbeat = False
-        threading.Timer(self.TIME_HEARTBEAT, self.check_heartbeat).start()
+        threading.Timer(self.TIME_HEARTBEAT,
+                        self.check_heartbeat).start()
 
 
 class Replica:

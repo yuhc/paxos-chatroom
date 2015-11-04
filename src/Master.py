@@ -100,7 +100,7 @@ if __name__ == "__main__":
                                           str(False),
                                           str(len(nodes)), str(len(clients))])
                     nodes[node_index] = p.pid
-                    print("Server#", i, " pid:", p.pid, sep="")
+                    print("Server#", node_index, " pid:", p.pid, sep="")
                 else:
                     print("Server#", line[1], " is alive", sep="")
             else:
