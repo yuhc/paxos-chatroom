@@ -279,8 +279,7 @@ class Leader:
         else:
             return None
 
-    def process_message(self, m):
-        triple = literal_eval(m)
+    def process_message(self, triple):
         if (triple[0] == "propose"):
             if (not (triple[1][0] in self.proposals)):
                 proposals[triple[1][0]] = triple[1][1]
