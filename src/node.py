@@ -34,6 +34,10 @@ class Server:
         except:
             print(self.uid, "error: unable to start new thread")
 
+        # acceptor
+        # acceptor must be started first
+        self.acceptor = Acceptor(self.node_id, self.nt)
+
         # Leaders
         self.is_leader = is_leader
         if is_leader:
@@ -53,7 +57,6 @@ class Server:
             self.replica = Replica(node_id, self.nt)
         else:
             self.is_replica = False
-        self.acceptor = Acceptor(self.node_id, self.nt)
 
         # TODO: leader broadcasts heartbeat
         self.rev_heartbeat = True # whether receive heartbeat in current period
@@ -158,7 +161,7 @@ class Server:
                 try:
                     self.leader
                 except:
-                    self.leader = Leader(self.node_id)
+                    self.leader = Leader(self.node_id, self.num_nodes, self.nt)
                 print(self.uid, "starts heartbeat")
                 self.broadcast_heartbeat()
             if self.is_replica:
@@ -268,11 +271,11 @@ class Leader:
         self.scout_id   = 0
         self.scouts[self.scout_id] = Scout(self.node_id, self.num_nodes,
                                                   self.ballot_num,
-                                                  self.scout_id, self.nt)
+                                                  self.scout_id, nt)
         self.scout_id = self.scout_id + 1
         self.nt = nt
 
-    def pmax(pvals):
+    def pmax(self, pvals):
         # pvals: (b, s, p)
         result = set()
         if pvals:
@@ -290,7 +293,7 @@ class Leader:
         if not (slot_num in self.proposals):
             proposals[slot_num] = message[1]
             if self.active:
-                self.commanders[self.commander_id] =
+                self.commanders[self.commander_id] = \
                 Commander(self.node_id, self.num_nodes,
                           (self.ballot_num, slot_num, proposal),
                           self.commander_id, self.nt)
@@ -300,12 +303,12 @@ class Leader:
         Message format: ['adopted', ballot_num, pvalue].
         pvalue contains (b, s, p). '''
     def process_adopted(self, message):
-        max_p = pmax(message[2]) # pmax(pvals)
+        max_p = self.pmax(message[2]) # pmax(pvals)
         if max_p:
             for item in max_p:
                 self.proposals[item[0]] = item[1]
             for (s, p) in self.proposals:
-                self.commanders[self.commander_id] =
+                self.commanders[self.commander_id] = \
                 Commander(self.node_id, self.num_nodes,
                           (self.ballot_num, s, p), self.commander_id, self.nt)
                 self.commander_id = self.commander_id + 1
@@ -342,8 +345,9 @@ class Scout:
         self.num_nodes  = num_nodes # number of acceptors
         self.nt         = nt
         self.scout_id   = scout_id
-        # for all acceptors send ("p1a", self.scout_id, self.ballot_num) to a
-        self.nt.broadcast_to_server(str("p1a", (self.leader_id, self.scout_id), self.ballot_num))
+        # send ("p1a", (leader_id, scout_id), self.ballot_num) to all acceptors
+        self.nt.broadcast_to_server(str(("p1a", (self.leader_id, self.scout_id),
+                                        self.ballot_num)))
 
     def process_p1b(self, triple):
         if (triple[0] == "p1b"):
@@ -352,9 +356,10 @@ class Scout:
                     self.pvalues.add(item)
                 self.waitfor.remove(triple[1][0])
                 if (len(self.waitfor) < num_nodes /2):
-                    # send ("adopted", self.ballot_num, tuple(self.pvalues)) to leader
-                    self.send_to_server(self.leader_id,
-                                        str(("adopted", self.ballot_num, tuple(self.pvalues))))
+                    # send ("adopted", self.ballot_num, tuple(self.pvalues))
+                    # to leader
+                    self.nt.send_to_server(self.leader_id,
+                        str(("adopted", self.ballot_num, tuple(self.pvalues))))
             else:
                 # send ("preempted", triple[2]) to leader
                 self.nt.send_to_server(self.leader_id, str(("preempted", triple[2])))
@@ -402,7 +407,7 @@ class Acceptor:
         # send ('p1b', (self.node_id, scout_id), self.ballot_num, self.accepted)
         # to the corresponding leader
         self.nt.send_to_server(sender_id, str(("p1b", (self.node_id, scout_id),
-            self.ballot_num, tuple(self.accepted)))
+            self.ballot_num, tuple(self.accepted))))
 
     ''' Process the request from commander.
         Message format: ['p2a', (sender_id, commander_id),
