@@ -37,7 +37,8 @@ class Server:
         # Leaders
         self.is_leader = is_leader
         if is_leader:
-            self.leader = Leader(node_id, self.num_nodes)
+            time.sleep(2) # wait for other servers to start
+            self.leader = Leader(node_id, self.num_nodes, self.nt)
             print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
                                  # remember to update replica.leader_id and leader
@@ -57,7 +58,6 @@ class Server:
         # TODO: leader broadcasts heartbeat
         self.rev_heartbeat = True # whether receive heartbeat in current period
         if is_leader:
-            time.sleep(2) # wait for other servers to start
             self.broadcast_heartbeat()
         self.check_heartbeat()
 
@@ -114,16 +114,15 @@ class Server:
             self.replica.decide(message[1])
 
     def leader_operation(self, message):
-        self.leader.process_message(message)
-
-    def scout_operation(self, message):
-        # p1b from acceptor: ['p1b', sender_id, ballot_num, accepted]
-        self.scout_map[triple[1][1]].process_message(message)
-
-    def commander_operation(self, message):
-        # p2b from acceptor: ['p2b', sender_id, ballot_num]
-        triple = literal_eval(message)
-        self.commander_map[triple[1][1]].process_message(triple)
+        # proposal from replica: ['propose', (slot_num, proposal)]
+        if message[0] == 'propose':
+            self.leader.process_propose(message)
+        # adoption from scout: ['adopted', ballot_num, pvalue]
+        elif message[0] == 'adopted':
+            self.leader.process_adopted(message)
+        # preemption from commander: ['preempted', ballot]
+        elif message[0] == 'preempted':
+            self.leader.process_preempted(message)
 
     def acceptor_operation(self, message):
         # request from scout: ['p1a', (sender_id, scout_id), ballot_num]
@@ -201,7 +200,7 @@ class Replica:
     def decide(self, decision):
         # dec = (slot_num, proposal)
         self.decisions.add(decision)
-        flt1 = filter(lambda x: x[0] == self.slot_num, self.decisions)
+        flt1 = filter(lambda x: x[0] == self.slot_num, self.decisions) # may need list()
         while flt1:
             p1 = flt1[0][1]
             flt2 = filter(lambda x: x in self.proposals and x[1] != p1, flt1)
@@ -257,62 +256,84 @@ class Leader:
     @self.active:     initially false
     @self.proposals:  initially empty
     '''
-    def __init__(self, node_id, num_nodes):
+    def __init__(self, node_id, num_nodes, nt):
         self.node_id    = node_id
         self.num_nodes  = num_nodes
         self.active     = False
         self.proposals  = {}
         self.ballot_num = 0
-        self.commander_map = {}
-        self.scout_map = {}
-        self.commander_number = 0
-        self.scout_number = 0
-        self.scout_map[self.scout_number] = Scout(self.node_id, self.num_nodes,
+        self.commanders = {}
+        self.scouts     = {}
+        self.commander_id = 0
+        self.scout_id   = 0
+        self.scouts[self.scout_id] = Scout(self.node_id, self.num_nodes,
                                                   self.ballot_num,
-                                                  self.scout_number)
-        self.scout_number = self.scout_number + 1
+                                                  self.scout_id)
+        self.scout_id = self.scout_id + 1
+        self.nt = nt
 
     def pmax(pvals):
-        if (len(pvals) != 0):
+        # pvals: (b, s, p)
+        result = set()
+        if pvals:
             max_pval = max(pvals)
-            return (max_pval[1], max_pval[2])
-        else:
-            return None
 
-    def process_message(self, triple):
-        if (triple[0] == "propose"):
-            if (not (triple[1][0] in self.proposals)):
-                proposals[triple[1][0]] = triple[1][1]
-                if (active):
-                    self.commander_map[commander_numnber] =
-                    Commander(self.node_id, self.num_nodes,
-                              (self.ballot_num, triple[1][0], triple[1][1]),
-                              self.commander_id)
-                    self.commander_id = self.commander_id + 1
-        elif (triple[0] == "adopted"):
-            max_p = pmax(triple[2])
-            if (max_p != None):
-                for item in max_p:
-                    self.proposals[item[0]] = item[1]
-                for s in proposals:
-                    self.commander_map[self.commander_number] =
-                    Commander(self.node_id, self.num_nodes,
-                              (self.ballot_num, s, proposals[2]), self.commander_id)
-                    self.commander_id = self.commander_id + 1
-                    self.active = True
-        elif (triple[0] == "preempted"):
-            if (triple[1] > self.ballot_num):
-                active = false
-                self.ballot_num = self.ballot_num + 1
-                self.scout_map[self.scout_number] = Scout(self.node_id,
-                                                          self.num_nodes,
-                                                          self.ballot_num,
-                                                          self.scout_number)
-                self.scout_number = self.scout_number + 1
+            for pval in pvals:
+                if pval[0] == max_pval[0]:
+                    set.add((pval[1], pval[2]))
+        return result
+
+    ''' Process proposal from replica.
+        Message format: ['propose', (slot_num, proposal)] '''
+    def process_propose(self, message):
+        (slot_num, proposal) = message[1]
+        if not (slot_num in self.proposals):
+            proposals[slot_num] = message[1]
+            if self.active:
+                self.commanders[self.commander_id] =
+                Commander(self.node_id, self.num_nodes,
+                          (self.ballot_num, slot_num, proposal),
+                          self.commander_id)
+                self.commander_id = self.commander_id + 1
+
+    ''' Process adopted ballot_num from scout.
+        Message format: ['adopted', ballot_num, pvalue].
+        pvalue contains (b, s, p). '''
+    def process_adopted(self, message):
+        max_p = pmax(message[2]) # pmax(pvals)
+        if max_p:
+            for item in max_p:
+                self.proposals[item[0]] = item[1]
+            for (s, p) in self.proposals:
+                self.commanders[self.commander_id] =
+                Commander(self.node_id, self.num_nodes,
+                          (self.ballot_num, s, p), self.commander_id)
+                self.commander_id = self.commander_id + 1
+                self.active = True
+
+    ''' Process preempted ballot_num from Commander.
+        Message format: ['preempted', ballot] '''
+    def process_preempted(self, message):
+        r = message[1]
+        if r > self.ballot_num:
+            self.active = False
+            self.ballot_num = r + 1
+            self.scouts[self.scout_id] = Scout(self.node_id, self.num_nodes,
+                                               self.ballot_num, self.scout_id)
+            self.scout_id = self.scout_id + 1
+
+    def scout_operation(self, message):
+        # p1b from acceptor: ['p1b', sender_id, ballot_num, accepted]
+        self.scout_map[triple[1][1]].process_message(message)
+
+    def commander_operation(self, message):
+        # p2b from acceptor: ['p2b', sender_id, ballot_num]
+        triple = literal_eval(message)
+        self.commander_map[triple[1][1]].process_message(triple)
 
 
 class Scout:
-    def __init__(self, leader_id, num_nodes, b, scout_id):
+    def __init__(self, leader_id, num_nodes, b, scout_id, nt):
         self.leader_id  = leader_id
         self.ballot_num = b
         self.pvalues    = set()
