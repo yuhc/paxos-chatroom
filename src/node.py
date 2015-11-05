@@ -43,7 +43,7 @@ class Server:
         if is_leader:
             time.sleep(2) # wait for other servers to start
             self.leader = Leader(node_id, self.num_nodes, self.nt)
-            self.leader.initial_scout()
+            self.leader.init_scout()
             print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
                                  # remember to update replica.leader_id and leader
@@ -163,7 +163,7 @@ class Server:
                     self.leader
                 except:
                     self.leader = Leader(self.node_id, self.num_nodes, self.nt)
-                    self.leader.initial_scout()
+                    self.leader.init_scout()
                 print(self.uid, "starts heartbeat")
                 self.broadcast_heartbeat()
             if self.is_replica:
@@ -278,11 +278,12 @@ class Leader:
 
     ''' must be splitted from __init__, so that Leader can be created before
         receving any messages like 'p1b' '''
-    def initial_scout(self):
+    def init_scout(self):
         self.scouts[self.scout_id] = Scout(self.node_id,
                                            self.num_nodes,
                                            self.ballot_num,
                                            self.scout_id, self.nt)
+        self.scouts[self.scout_id].init_broadcast()
         self.scout_id = self.scout_id + 1
 
     def pmax(self, pvals):
@@ -301,7 +302,7 @@ class Leader:
     def process_propose(self, message):
         (slot_num, proposal) = message[1]
         if not (slot_num in self.proposals):
-            proposals[slot_num] = message[1]
+            self.proposals[slot_num] = message[1]
             if self.active:
                 self.commanders[self.commander_id] = \
                 Commander(self.node_id, self.num_nodes,
@@ -333,6 +334,7 @@ class Leader:
             self.ballot_num = r + 1
             self.scouts[self.scout_id] = Scout(self.node_id, self.num_nodes,
                                                self.ballot_num, self.scout_id)
+            self.scouts[self.scout_id].init_broadcast()
             self.scout_id = self.scout_id + 1
 
     def scout_operation(self, message):
@@ -355,6 +357,9 @@ class Scout:
         self.num_nodes  = num_nodes # number of acceptors
         self.nt         = nt
         self.scout_id   = scout_id
+
+    ''' must be splitted from __init__ '''
+    def init_broadcast(self):
         # send ("p1a", (leader_id, scout_id), self.ballot_num) to all acceptors
         self.nt.broadcast_to_server(str(("p1a", (self.leader_id, self.scout_id),
                                         self.ballot_num)))
