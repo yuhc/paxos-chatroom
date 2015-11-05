@@ -279,12 +279,31 @@ class Leader:
     ''' must be splitted from __init__, so that Leader can be created before
         receving any messages like 'p1b' '''
     def init_scout(self):
+        self.spawn_scout()
+
+    def spawn_scout(self):
         self.scouts[self.scout_id] = Scout(self.node_id,
                                            self.num_nodes,
                                            self.ballot_num,
                                            self.scout_id, self.nt)
         self.scouts[self.scout_id].init_broadcast()
         self.scout_id = self.scout_id + 1
+
+    def spawn_commander(self, slot_num, proposal):
+        self.commanders[self.commander_id] = \
+                        Commander(self.node_id, self.num_nodes,
+                                  (self.ballot_num, slot_num, proposal),
+                                  self.commander_id, self.nt)
+        self.commander_id = self.commander_id + 1
+
+    ''' Process proposal from replica.
+        Message format: ['propose', (slot_num, proposal)] '''
+    def process_propose(self, message):
+        (slot_num, proposal) = message[1]
+        if not (slot_num in self.proposals):
+            self.proposals[slot_num] = message[1]
+            if self.active:
+                self.spawn_commander(slot_num, proposal)
 
     def pmax(self, pvals):
         # pvals: (b, s, p)
@@ -297,19 +316,6 @@ class Leader:
                     set.add((pval[1], pval[2]))
         return result
 
-    ''' Process proposal from replica.
-        Message format: ['propose', (slot_num, proposal)] '''
-    def process_propose(self, message):
-        (slot_num, proposal) = message[1]
-        if not (slot_num in self.proposals):
-            self.proposals[slot_num] = message[1]
-            if self.active:
-                self.commanders[self.commander_id] = \
-                Commander(self.node_id, self.num_nodes,
-                          (self.ballot_num, slot_num, proposal),
-                          self.commander_id, self.nt)
-                self.commander_id = self.commander_id + 1
-
     ''' Process adopted ballot_num from scout.
         Message format: ['adopted', ballot_num, pvalue].
         pvalue contains (b, s, p). '''
@@ -319,10 +325,7 @@ class Leader:
             for item in max_p:
                 self.proposals[item[0]] = item[1]
             for (s, p) in self.proposals:
-                self.commanders[self.commander_id] = \
-                Commander(self.node_id, self.num_nodes,
-                          (self.ballot_num, s, p), self.commander_id, self.nt)
-                self.commander_id = self.commander_id + 1
+                self.spawn_commander(s, p)
                 self.active = True
 
     ''' Process preempted ballot_num from Commander.
@@ -332,10 +335,7 @@ class Leader:
         if r > self.ballot_num:
             self.active = False
             self.ballot_num = r + 1
-            self.scouts[self.scout_id] = Scout(self.node_id, self.num_nodes,
-                                               self.ballot_num, self.scout_id)
-            self.scouts[self.scout_id].init_broadcast()
-            self.scout_id = self.scout_id + 1
+            self.spawn_scout()
 
     def scout_operation(self, message):
         # p1b from acceptor:
