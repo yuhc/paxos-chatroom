@@ -37,7 +37,7 @@ class Server:
         # Leaders
         self.is_leader = is_leader
         if is_leader:
-            self.leader = Leader(node_id)
+            self.leader = Leader(node_id, self.num_nodes)
             print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
                                  # remember to update replica.leader_id and leader
@@ -52,6 +52,7 @@ class Server:
             self.replica = Replica(node_id, self.nt)
         else:
             self.is_replica = False
+        self.acceptor = Acceptor(self.node_id)
 
         # TODO: leader broadcasts heartbeat
         self.rev_heartbeat = True # whether receive heartbeat in current period
@@ -116,14 +117,12 @@ class Server:
 
     def scout_operation(self, message):
         # p1b from acceptor: ['p1b', sender_id, ballot_num, accepted]
-        self.scout = Scout(self.current_leader, self.num_nodes, self.leader.)
+        self.scout.process_message(message)
 
     def commander_operation(self, message):
         # p2b from acceptor: ['p2b', sender_id, ballot_num]
-        if (message[0] == "p2b"):
-            # TODO: handler
-            print(message)
-
+        self.commander.process_message(message)
+        
     def broadcast_heartbeat(self):
         if self.is_leader: # others may be elected
             self.broadcast_to_server("'heartbeat', "
@@ -213,7 +212,7 @@ class Replica:
                     break
             self.proposals.add((s, proposal))
             # send `propose, (s, p)` to leader
-            self.send_to_server(self.leader_id,
+            self.nt.send_to_server(self.leader_id,
                                 str(("propose", s, proposal)))
 
     def perform(self, proposal):
@@ -225,7 +224,7 @@ class Replica:
             with open(self.log_name, 'a') as f:
                 f.write(proposal[3])
             # send `response, (cid, result)` to client
-            self.broadcast_to_client(p[0], str(("response", p[1], "Done")))
+            self.nt.broadcast_to_client(p[0], str(("response", p[1], "Done")))
 
     '''
     check whether there exists any <s, @proposal> in @pair_set
@@ -247,25 +246,60 @@ class Leader:
     @self.active:     initially false
     @self.proposals:  initially empty
     '''
-    def __init__(self, node_id):
+    def __init__(self, node_id, num_nodes):
         self.node_id    = node_id
+        self.num_nodes  = num_nodes
         self.active     = False
-        self.proposals  = []
+        self.proposals  = set()
         self.ballot_num = 0
+        self.commander_map = {}
+        self.scout_map = {}
+        self.commander_number = 0
+        self.scout_number = 0
+        self.scout_map[self.scout_number] = Scout(self.node_id, self.num_nodes,
+                                                  self.ballot_num,
+                                                  self.scout_number)
+        self.scout_number = self.scout_number + 1
+
+    def check_slot(sn):
+        for (ss, pp) in self.proposals:
+            if (sn == ss):
+                return True
+        return False
+
+    def pmax():
+        
+
+    def process_message(self, m):
+        triple = literal_eval(m)
+        if (triple[0] == "propose"):
+            if (not check_slot(triple[1][0])):
+                proposals.add(triple[1])
+                if (active):
+                    self.commander_map[commander_numnber] =
+                    Commander(self.node_id, self.num_nodes,
+                              (self.ballot_num, triple[1][0], triple[1][1]),
+                              self.commander_id)
+                    self.commander_id = self.commander_id + 1
+        elif (triple[0] == "adopted"):
+
 
 
 class Scout:
-    def __init__(self, leader_id, num_nodes, b, m):
+    def __init__(self, leader_id, num_nodes, b, scout_id):
         self.leader_id  = leader_id
         self.ballot_num = b
         self.pvalues    = set()
         self.waitfor    = set(range(0, num_nodes))
-        self.m          = m
         self.num_nodes  = num_nodes # number of acceptors
+        self.nt         = nt
+        self.scout_id   = scout_id
+        # for all acceptors send ("p1a", self.scout_id, self.ballot_num) to a
+        self.nt.broadcast_to_server(str("p1a", self.scout_id, self.ballot_num))
+        
 
-    def run(self):
-        # TODO: for all acceptors send(a, ("p1a", self.node_id, self.ballot_num))
-        triple = literal_eval(self.m)
+    def process_message(self, m):
+        triple = literal_eval(m)
         if (triple[0] == "p1b"):
             if (triple[2] == self.ballot_num):
                 for item in triple[3]:
@@ -275,53 +309,51 @@ class Scout:
                     # send ("adopted", self.ballot_num, tuple(self.pvalues)) to leader
                     self.send_to_server(self.leader_id,
                                         str(("adopted", self.ballot_num, tuple(self.pvalues))))
-                    os._exit()
             else:
                 # send ("preempted", triple[2]) to leader
-                self.send_to_server(self.leader_id, str(("preempted", triple[2])))
-                os._exit()
+                self.nt.send_to_server(self.leader_id, str(("preempted", triple[2])))
 
 
 class Commander:
-    def __init__(self, leader_id, num_nodes, pvalue, m):
-        self.leader_id = leader_id
-        self.pvalue = pvalue
-        self.ballot_num = pvalue[0]
-        self.slot_num   = pvalue[1]
-        self.proposal   = pvalue[2]
-        self.waitfor = set(range(0, num_nodes))
-        self.m = m
+    def __init__(self, leader_id, num_nodes, pvalue, commander_id):
+        self.leader_id    = leader_id
+        self.pvalue       = pvalue
+        self.ballot_num   = pvalue[0]
+        self.slot_num     = pvalue[1]
+        self.proposal     = pvalue[2]
+        self.waitfor      = set(range(0, num_nodes))
+        self.nt           = nt
+        self.commander_id = commander_id
+        # for all acceptors send ("p2a", self.commander_id, pvalue) to a
+        self.nt.broadcast_to_server(str(("p2a", self.commander_id, self.pvalue)))
 
-    def run(self):
-        # TODO: for all acceptors send(a, ("p2a", self.node_id, pvalue))
+    def process_message(self, m):
         triple = literal_eval(self.m)
         if (triple[0] == "p2b"):
             if (self.ballot_num == triple[2]):
                 self.waitfor.remove(triple[1])
                 if (len(self.waitfor) < num_nodes / 2):
                     # send 'decision', (self.slot_num, self.proposal) to all replicas
-                    self.broadcast_to_server("'decision', "+str((self.slot_num, self.proposal)))
-                    os._exit()
+                    self.nt.broadcast_to_server("'decision', "+str((self.slot_num, self.proposal)))
             else:
                 # send ("preempted, triple[2]") to leader
-                self.send_to_server(self.leader_id, str(("preempted, triple[2]")))
-                os._exit()
+                self.nt.send_to_server(self.leader_id, str(("preempted", triple[2])))
 
 
 class Acceptor:
-    def __init__(self, m):
+    def __init__(self, node_id):
         self.accepted = set()
-        self.ballot_num = -1;
-        self.m = m
+        self.ballot_num = -1
+        self.node_id = node_id
 
-    def run(self):
+    def process_message(self, m):
         triple = literal_eval(self.m)
 
         if (triple[0] == "p1a"):
             if triple[2] > self.ballot_num:
                 self.ballot_num = triple[2]
             # send ("p1b", self.node_id, self.ballot_num, self.accepted) to leader
-            self.send_to_server(self.leader_id,
+            self.nt.send_to_server(self.leader_id,
               str(("p1b", self.node_id, self.ballot_num, tuple(self.accepted))))
         elif (triple[0] == "p2a"):
             pvalue = triplep[2]
@@ -329,7 +361,7 @@ class Acceptor:
                 ballot_num = pvalue[0]
                 accepted.add(pvalue)
             # send ("p2b, self.node_id, self.ballot_num") to leader
-            self.send_to_server(self.leader_id,
+            self.nt.send_to_server(self.leader_id,
               str(("p2b", self.node_id, self.ballot_num)))
 
 
