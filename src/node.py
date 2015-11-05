@@ -43,6 +43,7 @@ class Server:
         if is_leader:
             time.sleep(2) # wait for other servers to start
             self.leader = Leader(node_id, self.num_nodes, self.nt)
+            self.leader.initial_scout()
             print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
                                  # remember to update replica.leader_id and leader
@@ -162,6 +163,7 @@ class Server:
                     self.leader
                 except:
                     self.leader = Leader(self.node_id, self.num_nodes, self.nt)
+                    self.leader.initial_scout()
                 print(self.uid, "starts heartbeat")
                 self.broadcast_heartbeat()
             if self.is_replica:
@@ -199,20 +201,23 @@ class Replica:
 
     def set_leader(self, leader_id):
         self.leader_id = leader_id
+        # DB: print("Replica#", self.node_id, " sets leader to ", leader_id, sep="")
 
     def decide(self, decision):
         # dec = (slot_num, proposal)
         self.decisions.add(decision)
-        flt1 = filter(lambda x: x[0] == self.slot_num, self.decisions) # may need list()
+        flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
         while flt1:
             p1 = flt1[0][1]
-            flt2 = filter(lambda x: x in self.proposals and x[1] != p1, flt1)
+            flt2 = list(filter(lambda x: x in self.proposals and x[1] != p1,
+                               flt1))
             if flt2:
                 self.propose(flt2[0][1]) # repropose
             self.perform(p1)
-            flt1 = filter(lambda x: x[0] == self.slot_num, self.decisions)
+            flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
 
     def propose(self, proposal):
+        # DB: print("Replica", self.node_id, str(proposal), str(self.decisions))
         if (not self.is_in_set(proposal, self.decisions, False)):
             all_pairs = self.proposals.union(self.decisions)
             sorted_all_pairs = sorted(list(all_pairs), key=lambda x:x[0])
@@ -226,7 +231,7 @@ class Replica:
             self.proposals.add((s, proposal))
             # send `propose, (s, p)` to leader
             self.nt.send_to_server(self.leader_id,
-                                str(("propose", s, proposal)))
+                                str(("propose", (s, proposal))))
 
     def perform(self, proposal):
         if (self.is_in_set(proposal, self.decisions, True)):
@@ -249,7 +254,7 @@ class Replica:
                          pair_set)
         else:
             flt = filter(lambda x: x[1] == proposal, pair_set)
-        return bool(flt)
+        return bool(list(flt))
 
 
 class Leader:
@@ -269,11 +274,16 @@ class Leader:
         self.scouts     = {}
         self.commander_id = 0
         self.scout_id   = 0
-        self.scouts[self.scout_id] = Scout(self.node_id, self.num_nodes,
-                                                  self.ballot_num,
-                                                  self.scout_id, nt)
-        self.scout_id = self.scout_id + 1
         self.nt = nt
+
+    ''' must be splitted from __init__, so that Leader can be created before
+        receving any messages like 'p1b' '''
+    def initial_scout(self):
+        self.scouts[self.scout_id] = Scout(self.node_id,
+                                           self.num_nodes,
+                                           self.ballot_num,
+                                           self.scout_id, self.nt)
+        self.scout_id = self.scout_id + 1
 
     def pmax(self, pvals):
         # pvals: (b, s, p)
