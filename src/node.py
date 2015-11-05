@@ -111,17 +111,17 @@ class Server:
             self.replica.decide(message[1])
 
     def leader_operation(self, message):
-        if (message[0] == "propose"):
-            # TODO: handles proposal
-            print(message)
+        self.leader.process_message(message)
 
     def scout_operation(self, message):
         # p1b from acceptor: ['p1b', sender_id, ballot_num, accepted]
-        self.scout.process_message(message)
+        triple = literal_eval(message)
+        self.scout_map[triple[1][1]].process_message(triple)
 
     def commander_operation(self, message):
         # p2b from acceptor: ['p2b', sender_id, ballot_num]
-        self.commander.process_message(message)
+        triple = literal_eval(message)
+        self.commander_map[triple[1][1]].process_message(triple)
         
     def broadcast_heartbeat(self):
         if self.is_leader: # others may be elected
@@ -250,7 +250,7 @@ class Leader:
         self.node_id    = node_id
         self.num_nodes  = num_nodes
         self.active     = False
-        self.proposals  = set()
+        self.proposals  = {}
         self.ballot_num = 0
         self.commander_map = {}
         self.scout_map = {}
@@ -261,20 +261,18 @@ class Leader:
                                                   self.scout_number)
         self.scout_number = self.scout_number + 1
 
-    def check_slot(sn):
-        for (ss, pp) in self.proposals:
-            if (sn == ss):
-                return True
-        return False
-
-    def pmax():
-        
+    def pmax(pvals):
+        if (len(pvals) != 0):
+            max_pval = max(pvals)
+            return (max_pval[1], max_pval[2])
+        else:
+            return None
 
     def process_message(self, m):
         triple = literal_eval(m)
         if (triple[0] == "propose"):
-            if (not check_slot(triple[1][0])):
-                proposals.add(triple[1])
+            if (not (triple[1][0] in self.proposals)):
+                proposals[triple[1][0]] = triple[1][1]
                 if (active):
                     self.commander_map[commander_numnber] =
                     Commander(self.node_id, self.num_nodes,
@@ -282,7 +280,25 @@ class Leader:
                               self.commander_id)
                     self.commander_id = self.commander_id + 1
         elif (triple[0] == "adopted"):
-
+            max_p = pmax(triple[2])
+            if (max_p != None):
+                for item in max_p:
+                    self.proposals[item[0]] = item[1]
+                for s in proposals:
+                    self.commander_map[self.commander_number] =
+                    Commander(self.node_id, self.num_nodes,
+                              (self.ballot_num, s, proposals[2]), self.commander_id)
+                    self.commander_id = self.commander_id + 1
+                    self.active = True
+        elif (triple[0] == "preempted"):
+            if (triple[1] > self.ballot_num):
+                active = false
+                self.ballot_num = self.ballot_num + 1
+                self.scout_map[self.scout_number] = Scout(self.node_id,
+                                                          self.num_nodes,
+                                                          self.ballot_num,
+                                                          self.scout_number)
+                self.scout_number = self.scout_number + 1
 
 
 class Scout:
@@ -295,16 +311,15 @@ class Scout:
         self.nt         = nt
         self.scout_id   = scout_id
         # for all acceptors send ("p1a", self.scout_id, self.ballot_num) to a
-        self.nt.broadcast_to_server(str("p1a", self.scout_id, self.ballot_num))
+        self.nt.broadcast_to_server(str("p1a", (self.leader_id, self.scout_id), self.ballot_num))
         
 
-    def process_message(self, m):
-        triple = literal_eval(m)
+    def process_message(self, triple):
         if (triple[0] == "p1b"):
             if (triple[2] == self.ballot_num):
                 for item in triple[3]:
                     self.pvalues.add(item)
-                self.waitfor.remove(triple[1])
+                self.waitfor.remove(triple[1][0])
                 if (len(self.waitfor) < num_nodes /2):
                     # send ("adopted", self.ballot_num, tuple(self.pvalues)) to leader
                     self.send_to_server(self.leader_id,
@@ -325,13 +340,12 @@ class Commander:
         self.nt           = nt
         self.commander_id = commander_id
         # for all acceptors send ("p2a", self.commander_id, pvalue) to a
-        self.nt.broadcast_to_server(str(("p2a", self.commander_id, self.pvalue)))
+        self.nt.broadcast_to_server(str(("p2a", (self.leader_id, self.commander_id), self.pvalue)))
 
-    def process_message(self, m):
-        triple = literal_eval(self.m)
+    def process_message(self, triple):
         if (triple[0] == "p2b"):
             if (self.ballot_num == triple[2]):
-                self.waitfor.remove(triple[1])
+                self.waitfor.remove(triple[1][0])
                 if (len(self.waitfor) < num_nodes / 2):
                     # send 'decision', (self.slot_num, self.proposal) to all replicas
                     self.nt.broadcast_to_server("'decision', "+str((self.slot_num, self.proposal)))
