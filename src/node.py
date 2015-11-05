@@ -52,7 +52,7 @@ class Server:
             self.replica = Replica(node_id, self.nt)
         else:
             self.is_replica = False
-        self.acceptor = Acceptor(self.node_id)
+        self.acceptor = Acceptor(self.node_id, self.nt)
 
         # TODO: leader broadcasts heartbeat
         self.rev_heartbeat = True # whether receive heartbeat in current period
@@ -93,6 +93,9 @@ class Server:
                 # to commander
                 if (message[0] == "p2b"):
                     self.commander_operation(message)
+                # to acceptor
+                if (message[0] in ['p1a', 'p2a']):
+                    self.acceptor_operation(message)
                 # to server
                 if (message[0] == "heartbeat"):
                     self.receive_heartbeat(message)
@@ -122,7 +125,17 @@ class Server:
     def commander_operation(self, message):
         # p2b from acceptor: ['p2b', sender_id, ballot_num]
         self.commander.process_message(message)
-        
+
+    def acceptor_operation(self, message):
+        # request from scout: ['p1a', (sender_id, scout_id), ballot_num]
+        if message[0] == 'p1a':
+            self.acceptor.process_p1a(message)
+        # request from commander:
+        # ['p2a', (sender_id, commander_id), (ballot_num, slot_num, proposal)]
+        elif message[0] == 'p2a':
+            self.acceptor.process_p2a(message)
+
+
     def broadcast_heartbeat(self):
         if self.is_leader: # others may be elected
             self.broadcast_to_server("'heartbeat', "
@@ -268,7 +281,7 @@ class Leader:
         return False
 
     def pmax():
-        
+
 
     def process_message(self, m):
         triple = literal_eval(m)
@@ -296,7 +309,7 @@ class Scout:
         self.scout_id   = scout_id
         # for all acceptors send ("p1a", self.scout_id, self.ballot_num) to a
         self.nt.broadcast_to_server(str("p1a", self.scout_id, self.ballot_num))
-        
+
 
     def process_message(self, m):
         triple = literal_eval(m)
@@ -341,28 +354,37 @@ class Commander:
 
 
 class Acceptor:
-    def __init__(self, node_id):
-        self.accepted = set()
+    def __init__(self, node_id, nt):
+        self.accepted   = set()
         self.ballot_num = -1
-        self.node_id = node_id
+        self.node_id    = node_id
+        self.nt         = nt
 
-    def process_message(self, m):
-        triple = literal_eval(self.m)
+    ''' Process the request from scout.
+        Message format: ['p1a', (sender_id, scout_id), ballot_num] '''
+    def process_p1a(self, message):
+        (sender_id, scout_id) = message[1]
+        b = message[2]
+        if b > self.ballot_num:
+            self.ballot_num = b
+        # send ('p1b', (self.node_id, scout_id), self.ballot_num, self.accepted)
+        # to the corresponding leader
+        self.nt.send_to_server(sender_id, str(("p1b", (self.node_id, scout_id),
+            self.ballot_num, tuple(self.accepted)))
 
-        if (triple[0] == "p1a"):
-            if triple[2] > self.ballot_num:
-                self.ballot_num = triple[2]
-            # send ("p1b", self.node_id, self.ballot_num, self.accepted) to leader
-            self.nt.send_to_server(self.leader_id,
-              str(("p1b", self.node_id, self.ballot_num, tuple(self.accepted))))
-        elif (triple[0] == "p2a"):
-            pvalue = triplep[2]
-            if pvalue[0] >= self.ballot_num:
-                ballot_num = pvalue[0]
-                accepted.add(pvalue)
-            # send ("p2b, self.node_id, self.ballot_num") to leader
-            self.nt.send_to_server(self.leader_id,
-              str(("p2b", self.node_id, self.ballot_num)))
+    ''' Process the request from commander.
+        Message format: ['p2a', (sender_id, commander_id),
+                         (ballot_num, slot_num, proposal)] '''
+    def process_p2a(self, message):
+        (sender_id, commander_id) = message[1]
+        pvalue = message[2]
+        b = pvalue[0]
+        if b >= self.ballot_num:
+            ballot_num = b
+            self.accepted.add(pvalue)
+        # send ("p2b, self.node_id, self.ballot_num") to leader
+        self.nt.send_to_server(sender_id,
+            str(("p2b", (self.node_id, commander_id), self.ballot_num)))
 
 
 if __name__ == "__main__":
