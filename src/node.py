@@ -89,10 +89,10 @@ class Server:
                     self.leader_operation(message)
                 # to scout
                 if (message[0] == "p1b"):
-                    self.scout_operation(message)
+                    self.leader.scout_operation(message)
                 # to commander
                 if (message[0] == "p2b"):
-                    self.commander_operation(message)
+                    self.leader.commander_operation(message)
                 # to acceptor
                 if (message[0] in ['p1a', 'p2a']):
                     self.acceptor_operation(message)
@@ -268,7 +268,7 @@ class Leader:
         self.scout_id   = 0
         self.scouts[self.scout_id] = Scout(self.node_id, self.num_nodes,
                                                   self.ballot_num,
-                                                  self.scout_id)
+                                                  self.scout_id, self.nt)
         self.scout_id = self.scout_id + 1
         self.nt = nt
 
@@ -293,7 +293,7 @@ class Leader:
                 self.commanders[self.commander_id] =
                 Commander(self.node_id, self.num_nodes,
                           (self.ballot_num, slot_num, proposal),
-                          self.commander_id)
+                          self.commander_id, self.nt)
                 self.commander_id = self.commander_id + 1
 
     ''' Process adopted ballot_num from scout.
@@ -307,7 +307,7 @@ class Leader:
             for (s, p) in self.proposals:
                 self.commanders[self.commander_id] =
                 Commander(self.node_id, self.num_nodes,
-                          (self.ballot_num, s, p), self.commander_id)
+                          (self.ballot_num, s, p), self.commander_id, self.nt)
                 self.commander_id = self.commander_id + 1
                 self.active = True
 
@@ -323,13 +323,14 @@ class Leader:
             self.scout_id = self.scout_id + 1
 
     def scout_operation(self, message):
-        # p1b from acceptor: ['p1b', sender_id, ballot_num, accepted]
-        self.scout_map[triple[1][1]].process_message(message)
+        # p1b from acceptor:
+        # ['p1b', (sender_id, scout_id), ballot_num, accepted]
+        self.scouts[message[1][1]].process_p1b(message)
 
     def commander_operation(self, message):
-        # p2b from acceptor: ['p2b', sender_id, ballot_num]
-        triple = literal_eval(message)
-        self.commander_map[triple[1][1]].process_message(triple)
+        # p2b from acceptor:
+        # ['p2b', (sender_id, commander_id), ballot_num]
+        self.commanders[message[1][1]].process_p2b(message)
 
 
 class Scout:
@@ -344,7 +345,7 @@ class Scout:
         # for all acceptors send ("p1a", self.scout_id, self.ballot_num) to a
         self.nt.broadcast_to_server(str("p1a", (self.leader_id, self.scout_id), self.ballot_num))
 
-    def process_message(self, triple):
+    def process_p1b(self, triple):
         if (triple[0] == "p1b"):
             if (triple[2] == self.ballot_num):
                 for item in triple[3]:
@@ -360,7 +361,7 @@ class Scout:
 
 
 class Commander:
-    def __init__(self, leader_id, num_nodes, pvalue, commander_id):
+    def __init__(self, leader_id, num_nodes, pvalue, commander_id, nt):
         self.leader_id    = leader_id
         self.pvalue       = pvalue
         self.ballot_num   = pvalue[0]
@@ -372,7 +373,7 @@ class Commander:
         # for all acceptors send ("p2a", self.commander_id, pvalue) to a
         self.nt.broadcast_to_server(str(("p2a", (self.leader_id, self.commander_id), self.pvalue)))
 
-    def process_message(self, triple):
+    def process_p2b(self, triple):
         if (triple[0] == "p2b"):
             if (self.ballot_num == triple[2]):
                 self.waitfor.remove(triple[1][0])
@@ -413,7 +414,7 @@ class Acceptor:
         if b >= self.ballot_num:
             ballot_num = b
             self.accepted.add(pvalue)
-        # send ("p2b, self.node_id, self.ballot_num") to leader
+        # send ("p2b, (self.node_id, command_id), self.ballot_num") to leader
         self.nt.send_to_server(sender_id,
             str(("p2b", (self.node_id, commander_id), self.ballot_num)))
 
