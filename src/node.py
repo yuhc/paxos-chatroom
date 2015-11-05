@@ -239,10 +239,11 @@ class Replica:
         else:
             self.slot_num = self.slot_num + 1
             # TODO: maybe not necessary to log
-            with open(self.log_name, 'a') as f:
-                f.write(proposal[3])
+            #with open(self.log_name, 'a') as f:
+            #    f.write(proposal[3])
+
             # send `response, (cid, result)` to client
-            self.nt.broadcast_to_client(p[0], str(("response", p[1], "Done")))
+            self.nt.broadcast_to_client(str(("response", proposal[1], "Done")))
 
     '''
     check whether there exists any <s, @proposal> in @pair_set
@@ -364,20 +365,25 @@ class Scout:
         self.nt.broadcast_to_server(str(("p1a", (self.leader_id, self.scout_id),
                                         self.ballot_num)))
 
-    def process_p1b(self, triple):
-        if (triple[0] == "p1b"):
-            if (triple[2] == self.ballot_num):
-                for item in triple[3]:
-                    self.pvalues.add(item)
-                self.waitfor.remove(triple[1][0])
-                if (len(self.waitfor) < num_nodes /2):
-                    # send ("adopted", self.ballot_num, tuple(self.pvalues))
-                    # to leader
-                    self.nt.send_to_server(self.leader_id,
-                        str(("adopted", self.ballot_num, tuple(self.pvalues))))
-            else:
-                # send ("preempted", triple[2]) to leader
-                self.nt.send_to_server(self.leader_id, str(("preempted", triple[2])))
+    ''' Process p1b message from acceptor.
+        Message format: ('p1b', (sender_id, scout_id), ballot_num, accepted) '''
+    def process_p1b(self, message):
+        sender_id = message[1][0]
+        b = message[2] # received ballot_num, b'
+        r = message[3] # received accepted pvalues
+
+        if (b == self.ballot_num):
+            for item in r:
+                self.pvalues.add(item)
+            self.waitfor.remove(sender_id)
+            if (len(self.waitfor) < num_nodes/2):
+                # send ("adopted", ballot_num, tuple(pvalues)) to leader
+                self.nt.send_to_server(self.leader_id,
+                    str(("adopted", self.ballot_num, tuple(self.pvalues))))
+        else:
+            # send ("preempted", b') to leader
+            self.nt.send_to_server(self.leader_id,
+                                   str(("preempted", message[2])))
 
 
 class Commander:
@@ -393,16 +399,21 @@ class Commander:
         # for all acceptors send ("p2a", self.commander_id, pvalue) to a
         self.nt.broadcast_to_server(str(("p2a", (self.leader_id, self.commander_id), self.pvalue)))
 
-    def process_p2b(self, triple):
-        if (triple[0] == "p2b"):
-            if (self.ballot_num == triple[2]):
-                self.waitfor.remove(triple[1][0])
-                if (len(self.waitfor) < num_nodes / 2):
-                    # send 'decision', (self.slot_num, self.proposal) to all replicas
-                    self.nt.broadcast_to_server("'decision', "+str((self.slot_num, self.proposal)))
-            else:
-                # send ("preempted, triple[2]") to leader
-                self.nt.send_to_server(self.leader_id, str(("preempted", triple[2])))
+    ''' Process p2b message from acceptor.
+        Message format: ('p2b', (sender_id, command_id), ballot_num") '''
+    def process_p2b(self, message):
+        b = message[2] # received ballot_num, b'
+        sender_id = message[1][0]
+
+        if (self.ballot_num == b):
+            self.waitfor.remove(sender_id)
+            if (len(self.waitfor) < num_nodes/2):
+                # send 'decision', (slot_num, proposal) to all replicas
+                self.nt.broadcast_to_server(
+                    str(("decision", (self.slot_num, self.proposal))))
+        else:
+            # send ("preempted, b'") to leader
+            self.nt.send_to_server(self.leader_id, str(("preempted", b)))
 
 
 class Acceptor:
