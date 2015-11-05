@@ -324,9 +324,9 @@ class Leader:
         if max_p:
             for item in max_p:
                 self.proposals[item[0]] = item[1]
-            for (s, p) in self.proposals:
-                self.spawn_commander(s, p)
-                self.active = True
+        for (s, p) in self.proposals:
+            self.spawn_commander(s, p)
+        self.active = True
 
     ''' Process preempted ballot_num from Commander.
         Message format: ['preempted', ballot] '''
