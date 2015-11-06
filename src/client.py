@@ -34,13 +34,13 @@ class Client:
         # send requests periodically
         self.period_request()
 
-    def send(self, dest_id, message):
-        self.nt.send_to_server(dest_id, message)
+    def send(self, message):
+        self.nt.broadcast_to_server(message)
 
     def send_request(self, triple):
         encode = "'request', " + str(triple)
-        # maybe we should broadcast to all replicas or servers
-        self.send(self.leader_id, encode)
+        # broadcast to all replicas or servers
+        self.send(encode)
 
     def period_request(self):
         for tp in self.queue:
@@ -76,16 +76,16 @@ class Client:
                 # receive response from leader, send ask to master
                 # format: (response, cid, chat)
                 if buf[0] == "response":
-                    # TODO: add decision into self.chatlog
-                    # TODO: remove the message from self.queue
-                    self.nt.send_to_master("'messageHasBeenLogged'")
+                    # DB: self.nt.send_to_master("'messageHasBeenLogged'")
                     try:
+                        # remove the message from self.queue
                         triple = next(x for x in self.queue
                                       if x[2] == buf[1])
                         self.queue.remove(triple)
                     except StopIteration:
                         pass
                     if not buf in self.history:
+                        # add decision into self.chatlog
                         self.chatlog.append(buf[2])
                         self.history.add(buf)
                         print(self.uid, " logs <", buf[2], ">", sep="")

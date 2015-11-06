@@ -92,10 +92,10 @@ class Server:
                 if (message[0] in ['propose', 'adopted', 'preempted']):
                     self.leader_operation(message)
                 # to scout
-                if (message[0] == "p1b"):
+                if (message[0] == "p1b" and self.is_leader):
                     self.leader.scout_operation(message)
                 # to commander
-                if (message[0] == "p2b"):
+                if (message[0] == "p2b" and self.is_leader):
                     self.leader.commander_operation(message)
                 # to acceptor
                 if (message[0] in ['p1a', 'p2a']):
@@ -110,6 +110,8 @@ class Server:
                         self.nt.set_remain_message(int(message[1]))
 
     def replica_operation(self, message):
+        if not self.is_replica:
+            return
         # request from client:  ['request', (k, cid, message)]
         if (message[0] == "request"):
             self.replica.propose(message[1])
@@ -118,6 +120,8 @@ class Server:
             self.replica.decide(message[1])
 
     def leader_operation(self, message):
+        if not self.is_leader:
+            return
         # proposal from replica: ['propose', (slot_num, proposal)]
         if message[0] == 'propose':
             self.leader.process_propose(message)
@@ -209,8 +213,8 @@ class Replica:
         flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
         while flt1:
             p1 = flt1[0][1]
-            flt2 = list(filter(lambda x: x in self.proposals and x[1] != p1,
-                               flt1))
+            flt2 = list(filter(lambda x: x[0] == self.slot_num and x[1] != p1,
+                               self.proposals))
             if flt2:
                 self.propose(flt2[0][1]) # repropose
             self.perform(p1)
@@ -223,11 +227,9 @@ class Replica:
             sorted_all_pairs = sorted(list(all_pairs), key=lambda x:x[0])
             s = 1 # new minimum available slot
             for (st, pt) in sorted_all_pairs:
-                if (st == s):
-                    continue
-                s = s + 1
-                if (st != s + 1):
+                if (st > s):
                     break
+                s = st + 1
             self.proposals.add((s, proposal))
             # send `propose, (s, p)` to leader
             self.nt.send_to_server(self.leader_id,
@@ -267,16 +269,16 @@ class Leader:
     @self.proposals:  initially empty
     '''
     def __init__(self, node_id, num_nodes, nt):
-        self.node_id    = node_id
-        self.num_nodes  = num_nodes
-        self.active     = False
-        self.proposals  = {}
-        self.ballot_num = 0
-        self.commanders = {}
-        self.scouts     = {}
+        self.node_id      = node_id
+        self.num_nodes    = num_nodes
+        self.active       = False
+        self.proposals    = {}
+        self.ballot_num   = 0
+        self.commanders   = {}
+        self.scouts       = {}
         self.commander_id = 0
-        self.scout_id   = 0
-        self.nt = nt
+        self.scout_id     = 0
+        self.nt           = nt
 
     ''' must be splitted from __init__, so that Leader can be created before
         receving any messages like 'p1b' '''
@@ -360,6 +362,7 @@ class Scout:
         self.num_nodes  = num_nodes # number of acceptors
         self.nt         = nt
         self.scout_id   = scout_id
+        self.is_exited  = False
 
     ''' must be splitted from __init__ '''
     def init_broadcast(self):
@@ -370,6 +373,9 @@ class Scout:
     ''' Process p1b message from acceptor.
         Message format: ('p1b', (sender_id, scout_id), ballot_num, accepted) '''
     def process_p1b(self, message):
+        if self.is_exited:
+            return
+
         sender_id = message[1][0]
         b = message[2] # received ballot_num, b'
         r = message[3] # received accepted pvalues
@@ -378,11 +384,13 @@ class Scout:
             for item in r:
                 self.pvalues.add(item)
             self.waitfor.remove(sender_id)
-            if (len(self.waitfor) < num_nodes/2):
+            if (len(self.waitfor) < num_nodes/2.0):
+                self.is_exited = True
                 # send ("adopted", ballot_num, tuple(pvalues)) to leader
                 self.nt.send_to_server(self.leader_id,
                     str(("adopted", self.ballot_num, tuple(self.pvalues))))
         else:
+            self.is_exited = True
             # send ("preempted", b') to leader
             self.nt.send_to_server(self.leader_id,
                                    str(("preempted", message[2])))
@@ -398,6 +406,7 @@ class Commander:
         self.waitfor      = set(range(0, num_nodes))
         self.nt           = nt
         self.commander_id = commander_id
+        self.is_exited    = False
 
     ''' had better split it from __init__ '''
     def init_broadcast(self):
@@ -408,16 +417,21 @@ class Commander:
     ''' Process p2b message from acceptor.
         Message format: ('p2b', (sender_id, command_id), ballot_num") '''
     def process_p2b(self, message):
+        if self.is_exited:
+            return
+
         b = message[2] # received ballot_num, b'
         sender_id = message[1][0]
 
         if (self.ballot_num == b):
             self.waitfor.remove(sender_id)
-            if (len(self.waitfor) < num_nodes/2):
+            if (len(self.waitfor) < num_nodes/2.0):
+                self.is_exited = True
                 # send 'decision', (slot_num, proposal) to all replicas
                 self.nt.broadcast_to_server(
                     str(("decision", (self.slot_num, self.proposal))))
         else:
+            self.is_exited = True
             # send ("preempted, b'") to leader
             self.nt.send_to_server(self.leader_id, str(("preempted", b)))
 
