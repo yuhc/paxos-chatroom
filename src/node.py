@@ -295,6 +295,7 @@ class Leader:
                         Commander(self.node_id, self.num_nodes,
                                   (self.ballot_num, slot_num, proposal),
                                   self.commander_id, self.nt)
+        self.commanders[self.commander_id].init_broadcast()
         self.commander_id = self.commander_id + 1
 
     ''' Process proposal from replica.
@@ -396,8 +397,12 @@ class Commander:
         self.waitfor      = set(range(0, num_nodes))
         self.nt           = nt
         self.commander_id = commander_id
-        # for all acceptors send ("p2a", self.commander_id, pvalue) to a
-        self.nt.broadcast_to_server(str(("p2a", (self.leader_id, self.commander_id), self.pvalue)))
+
+    ''' had better split it from __init__ '''
+    def init_broadcast(self):
+        # send ('p2a', commander_id, pvalue) to all acceptors
+        self.nt.broadcast_to_server(
+            str(("p2a", (self.leader_id, self.commander_id), self.pvalue)))      
 
     ''' Process p2b message from acceptor.
         Message format: ('p2b', (sender_id, command_id), ballot_num") '''
