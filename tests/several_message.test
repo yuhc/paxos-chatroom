@@ -1,0 +1,10 @@
+start 3 2
+sendMessage 0 helloWorld
+sendMessage 1 helloWorld
+sendMessage 1 hi
+crashServer 2
+sendMessage 0 helloWorld
+allClear
+allClear
+printChatLog 0
+printChatLog 1

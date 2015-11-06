@@ -1,0 +1,6 @@
+start 3 2
+sendMessage 1 helloWorld
+allClear
+allClear
+printChatLog 0
+printChatLog 1
