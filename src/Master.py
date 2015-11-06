@@ -64,20 +64,20 @@ if __name__ == "__main__":
             message = ''.join(str(item) for item in line[2::])
             """ Instruct the client specified by client_index to send the message
                 to the proper paxos node """
-            nt.send_to_client(client_index, "sendMessage " + message)
+            nt.send_to_client(client_index, str(("sendMessage", message)))
 
         if line[0] == 'printChatLog':
             client_index = int(line[1])
             """ Print out the client specified by client_index's chat history
                 in the format described on the handout """
-            nt.send_to_client(client_index, "printChatLog")
+            nt.send_to_client(client_index, str(("printChatLog", 0)))
             time.sleep(PAUSE_TIME) # ensure the log has been printed
 
         if line[0] == 'allClear':
             """ Ensure that this blocks until all messages that are going to
                 come to consensus in PAXOS do, and that all clients have heard
                 of them """
-            nt.broadcast_to_client("allClear")
+            nt.broadcast_to_client(str(("allClear", 0)))
             time.sleep(CLEAR_TIME)
 
         if line[0] == 'crashServer':
@@ -113,7 +113,7 @@ if __name__ == "__main__":
             num_messages = int(line[1])
             """ Instruct the leader to crash after sending the number of paxos
                 related messages specified by num_messages """
-            nt.broadcast_to_server("'timeBombLeader', " + line[1])
+            nt.broadcast_to_server(str("timeBombLeader", line[1]))
 
 
     # kill the remained nodes and clients

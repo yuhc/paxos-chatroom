@@ -69,11 +69,11 @@ class Network:
             # do not print heartbeat
             try:
                 if DEBUG_HEARTBEAT or literal_eval(message)[0] != "heartbeat":
-                    print(self.uid, " sends <", message, "> to Server ",
-                          dest_id, sep="")
+                    print(self.uid, " sends ", message, " to Server ", dest_id,
+                          sep="")
             except:
-                print(self.uid, " sends <", message, "> to Server ",
-                      dest_id, sep="")
+                print(self.uid, " sends ", message, " to Server ", dest_id,
+                      sep="")
         except:
             if DEBUG_SOCKET:
                 print(self.uid, "connects to Server", dest_id, "failed")
@@ -89,8 +89,7 @@ class Network:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.PRIVATE_TCP_IP, self.CLIENT_BASE_PORT+dest_id))
             s.send(message.encode('ascii'))
-            print(self.uid, " sends <", message, "> to Client ", dest_id,
-                  sep="")
+            print(self.uid, " sends ", message, " to Client ", dest_id, sep="")
         except:
             if DEBUG_SOCKET:
                 print(self.uid, "connects to Client", dest_id, "failed")
@@ -105,7 +104,7 @@ class Network:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.PRIVATE_TCP_IP, self.MASTER_BASE_PORT))
             s.send(message.encode('ascii'))
-            print(self.uid, " sends <", message, "> to Master ", sep="")
+            print(self.uid, " sends ", message, " to Master ", sep="")
         except:
             if DEBUG_SOCKET:
                 print(self.uid, "connects to Master", dest_id, "failed")
@@ -125,12 +124,13 @@ class Network:
             decode_buf = buf.decode('ascii')
             # do not print heartbeat
             try:
-                if DEBUG_HEARTBEAT or literal_eval(decode_buf)[0] != "heartbeat":
-                    print(self.uid, " receives <", decode_buf, "> from ", 
-                          address, sep="")
+                if DEBUG_HEARTBEAT or \
+                   literal_eval(decode_buf)[0] != "heartbeat":
+                    print(self.uid, " receives ", decode_buf, " from ", address,
+                          sep="")
             except:
-                print(self.uid, " receives <", decode_buf, "> from ", 
-                          address, sep="")            
+                print(self.uid, " receives ", decode_buf, " from ", address,
+                      sep="")            
         else:
             decode_buf = ""
         return decode_buf

@@ -242,8 +242,9 @@ class Replica:
             #with open(self.log_name, 'a') as f:
             #    f.write(proposal[3])
 
-            # send `response, (cid, result)` to client
-            self.nt.broadcast_to_client(str(("response", proposal[1], "Done")))
+            # send `response, cid, result)` to client
+            self.nt.broadcast_to_client(
+                str(("response", proposal[1], proposal[2])))
 
     '''
     check whether there exists any <s, @proposal> in @pair_set

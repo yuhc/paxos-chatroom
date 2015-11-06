@@ -4,6 +4,7 @@ import sys, time, threading
 from threading import Thread, Lock
 
 from network import Network
+from ast import literal_eval
 
 class Client:
 
@@ -18,8 +19,9 @@ class Client:
         self.num_nodes = num_nodes
         self.uid = "Client#" + str(client_id)
         self.chatlog = []
-        self.queue = []
-        self.leader_id = 0 # default leader is server#0
+        self.queue   = []    # all waiting messages
+        self.history = set() # all received messages
+        self.leader_id = 0   # default leader is server#0
 
         # network controller
         self.nt = Network(self.uid, self.num_nodes)
@@ -50,7 +52,8 @@ class Client:
             buf = self.nt.receive()
             if len(buf) > 0:
                 # TODO: handle the received value
-                buf = buf.split()
+                buf = literal_eval(buf)
+                # buf = buf.split()
 
                 # send request to server (leader)
                 # should we send requests to all replicas?
@@ -71,10 +74,21 @@ class Client:
                         print(self.uid, ">>", l)
 
                 # receive response from leader, send ask to master
+                # format: (response, cid, chat)
                 if buf[0] == "response":
                     # TODO: add decision into self.chatlog
                     # TODO: remove the message from self.queue
-                    self.nt.send_to_master("messageHasBeenLogged")
+                    self.nt.send_to_master("'messageHasBeenLogged'")
+                    try:
+                        triple = next(x for x in self.queue
+                                      if x[2] == buf[1])
+                        self.queue.remove(triple)
+                    except StopIteration:
+                        pass
+                    if not buf in self.history:
+                        self.chatlog.append(buf[2])
+                        self.history.add(buf)
+                        print(self.uid, " logs <", buf[2], ">", sep="")
 
 
 if __name__ == "__main__":
