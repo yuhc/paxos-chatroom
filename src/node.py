@@ -147,7 +147,7 @@ class Server:
     def receive_heartbeat(self, message):
         # heartbeat from leader: ['heartbeat', leader_id]
         self.rev_heartbeat = True
-        print(self.uid, "receive heartbeat from", message[1])
+        # DB: print(self.uid, "receive heartbeat from", message[1])
 
         candidate = int(message[1])
         if (self.current_leader < 0) or \

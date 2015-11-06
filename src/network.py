@@ -63,8 +63,14 @@ class Network:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.PRIVATE_TCP_IP, self.SERVER_BASE_PORT+dest_id))
             s.send(message.encode('ascii'))
-            print(self.uid, " sends <", message, "> to Server ", dest_id,
-                  sep="")
+            # do not print heartbeat
+            try:
+                if literal_eval(message)[0] != "heartbeat":
+                    print(self.uid, " sends <", message, "> to Server ",
+                          dest_id, sep="")
+            except:
+                print(self.uid, " sends <", message, "> to Server ",
+                      dest_id, sep="")
         except:
             print(self.uid, "connects to Server", dest_id, "failed")
             # print("Unexpected error:", sys.exc_info()[0])
@@ -111,7 +117,14 @@ class Network:
         buf = connection.recv(self.BUFFER_SIZE)
         if len(buf) > 0:
             decode_buf = buf.decode('ascii')
-            print(self.uid, " receives <", decode_buf, "> from ", address, sep="")
+            # do not print heartbeat
+            try:
+                if literal_eval(decode_buf)[0] != "heartbeat":
+                    print(self.uid, " receives <", decode_buf, "> from ", 
+                          address, sep="")
+            except:
+                print(self.uid, " receives <", decode_buf, "> from ", 
+                          address, sep="")            
         else:
             decode_buf = ""
         return decode_buf
