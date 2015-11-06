@@ -1,5 +1,6 @@
 start 3 2
 sendMessage 1 hw1
+allClear
 timeBombLeader 1
 sendMessage 2 hw2
 allClear

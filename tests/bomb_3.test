@@ -1,11 +1,9 @@
-start 7 3
-sendMessage 0 hw0
+start 3 2
 sendMessage 1 hw1
-sendMessage 2 hw2
-sendMessage 0 hw3
-sendMessage 2 hw4
-sendMessage 1 hw5
+allClear
+timeBombLeader 7
+sendMessage 0 hw2
 allClear
 printChatLog 0
 printChatLog 1
-printChatLog 2
+
