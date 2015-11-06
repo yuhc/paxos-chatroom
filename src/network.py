@@ -3,6 +3,9 @@
 import sys, socket, os, signal
 from ast import literal_eval
 
+DEBUG_HEARTBEAT = False
+DEBUG_SOCKET    = True
+
 class Network:
 
     MASTER_BASE_PORT = 7000
@@ -65,15 +68,16 @@ class Network:
             s.send(message.encode('ascii'))
             # do not print heartbeat
             try:
-                if literal_eval(message)[0] != "heartbeat":
+                if DEBUG_HEARTBEAT or literal_eval(message)[0] != "heartbeat":
                     print(self.uid, " sends <", message, "> to Server ",
                           dest_id, sep="")
             except:
                 print(self.uid, " sends <", message, "> to Server ",
                       dest_id, sep="")
         except:
-            print(self.uid, "connects to Server", dest_id, "failed")
-            # print("Unexpected error:", sys.exc_info()[0])
+            if DEBUG_SOCKET:
+                print(self.uid, "connects to Server", dest_id, "failed")
+                # print("Unexpected error:", sys.exc_info()[0])
         try:
             if literal_eval(message)[0] != "heartbeat":
                 self.check_remain_message()
@@ -88,7 +92,8 @@ class Network:
             print(self.uid, " sends <", message, "> to Client ", dest_id,
                   sep="")
         except:
-            print(self.uid, "connects to Client", dest_id, "failed")
+            if DEBUG_SOCKET:
+                print(self.uid, "connects to Client", dest_id, "failed")
         try:
             if literal_eval(message)[0] != "heartbeat":
                 self.check_remain_message()
@@ -102,7 +107,8 @@ class Network:
             s.send(message.encode('ascii'))
             print(self.uid, " sends <", message, "> to Master ", sep="")
         except:
-            print(self.uid, "connects to Master", dest_id, "failed")
+            if DEBUG_SOCKET:
+                print(self.uid, "connects to Master", dest_id, "failed")
 
     def broadcast_to_server(self, message):
         for i in range(self.num_nodes):
@@ -119,7 +125,7 @@ class Network:
             decode_buf = buf.decode('ascii')
             # do not print heartbeat
             try:
-                if literal_eval(decode_buf)[0] != "heartbeat":
+                if DEBUG_HEARTBEAT or literal_eval(decode_buf)[0] != "heartbeat":
                     print(self.uid, " receives <", decode_buf, "> from ", 
                           address, sep="")
             except:
