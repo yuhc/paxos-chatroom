@@ -113,7 +113,7 @@ if __name__ == "__main__":
             num_messages = int(line[1])
             """ Instruct the leader to crash after sending the number of paxos
                 related messages specified by num_messages """
-            nt.broadcast_to_server(str("timeBombLeader", line[1]))
+            nt.broadcast_to_server(str(("timeBombLeader", line[1])))
 
 
     # kill the remained nodes and clients

@@ -244,9 +244,10 @@ class Replica:
             #with open(self.log_name, 'a') as f:
             #    f.write(proposal[3])
 
-            # send `response, cid, result)` to client
+            # send `response, client_id, cid, (slot_num, result))` to client
             self.nt.broadcast_to_client(
-                str(("response", proposal[1], proposal[2])))
+                str(("response", proposal[0], proposal[1],
+                     (self.slot_num-1, proposal[2]))))
 
     '''
     check whether there exists any <s, @proposal> in @pair_set
@@ -318,7 +319,7 @@ class Leader:
 
             for pval in pvals:
                 if pval[0] == max_pval[0]:
-                    set.add((pval[1], pval[2]))
+                    result.add((pval[1], pval[2]))
         return result
 
     ''' Process adopted ballot_num from scout.
@@ -329,8 +330,8 @@ class Leader:
         if max_p:
             for item in max_p:
                 self.proposals[item[0]] = item[1]
-        for (s, p) in self.proposals:
-            self.spawn_commander(s, p)
+        for s in self.proposals:
+            self.spawn_commander(s, self.proposals[s])
         self.active = True
 
     ''' Process preempted ballot_num from Commander.
@@ -412,7 +413,7 @@ class Commander:
     def init_broadcast(self):
         # send ('p2a', commander_id, pvalue) to all acceptors
         self.nt.broadcast_to_server(
-            str(("p2a", (self.leader_id, self.commander_id), self.pvalue)))      
+            str(("p2a", (self.leader_id, self.commander_id), self.pvalue)))
 
     ''' Process p2b message from acceptor.
         Message format: ('p2b', (sender_id, command_id), ballot_num") '''

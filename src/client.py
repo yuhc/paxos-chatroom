@@ -71,24 +71,26 @@ class Client:
                 if buf[0] == "printChatLog":
                     print(self.uid, "prints chat log")
                     for l in self.chatlog:
-                        print(self.uid, ">>", l)
+                        # TODO: may need index_number instead of slot_num
+                        print(self.uid, ">>", l[0], self.client_id, l[1])
 
                 # receive response from leader, send ask to master
-                # format: (response, cid, chat)
+                # format: (response, client_id, cid, (index, chat))
                 if buf[0] == "response":
                     # DB: self.nt.send_to_master("'messageHasBeenLogged'")
-                    try:
-                        # remove the message from self.queue
-                        triple = next(x for x in self.queue
-                                      if x[2] == buf[1])
-                        self.queue.remove(triple)
-                    except StopIteration:
-                        pass
+                    if buf[1] == self.client_id:
+                        try:
+                            # remove the message from self.queue
+                            triple = next(x for x in self.queue
+                                          if x[1] == buf[2])
+                            self.queue.remove(triple)
+                        except StopIteration:
+                            pass
                     if not buf in self.history:
                         # add decision into self.chatlog
-                        self.chatlog.append(buf[2])
+                        self.chatlog.append(buf[3])
                         self.history.add(buf)
-                        print(self.uid, " logs <", buf[2], ">", sep="")
+                        print(self.uid, " logs <", buf[3], ">", sep="")
 
 
 if __name__ == "__main__":
