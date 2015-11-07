@@ -4,24 +4,30 @@ import fileinput
 import subprocess, sys, os, signal, time
 from threading import Thread, Lock
 
-from network import Network
+from network   import Network
+from ast       import literal_eval
 
 SLEEP_TIME = 5
 PAUSE_TIME = 0.5
-CLEAR_TIME = 10
+CLEAR_TIME = 2
 
 if __name__ == "__main__":
     uid = "Master#0"
+    waitfor_clear = set()
 
     # network controller
     nt = Network(uid)
     def receive():
         global nt
-        global leader_id
+        global waitfor_clear
         while 1:
             buf = nt.receive()
             if len(buf) > 0:
                 print(uid, "handles", buf)
+                buf = literal_eval(buf)
+                if buf[0] == 'allCleared':
+                    print(buf[1], waitfor_clear)
+                    waitfor_clear.remove(buf[1])
 
     try:
         t_recv = Thread(target=receive)
@@ -77,8 +83,11 @@ if __name__ == "__main__":
             """ Ensure that this blocks until all messages that are going to
                 come to consensus in PAXOS do, and that all clients have heard
                 of them """
+            waitfor_clear = set(range(num_clients))
             nt.broadcast_to_client(str(("allClear", 0)))
-            time.sleep(CLEAR_TIME)
+            while waitfor_clear:
+                time.sleep(CLEAR_TIME)
+                print(uid, "waits for allClear")
 
         if line[0] == 'crashServer':
             node_index = int(line[1])

@@ -3,8 +3,8 @@
 import sys, time, threading
 from threading import Thread, Lock
 
-from network import Network
-from ast import literal_eval
+from network   import Network
+from ast       import literal_eval
 
 class Client:
 
@@ -65,7 +65,9 @@ class Client:
 
                 # clear the message queue
                 if buf[0] == "allClear":
-                    self.queue[:] = []
+                    while self.queue:
+                        time.sleep(2)
+                    self.nt.send_to_master(str(("allCleared", self.client_id)))
 
                 # print chat log
                 if buf[0] == "printChatLog":
