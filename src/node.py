@@ -225,11 +225,17 @@ class Replica:
         if (not self.is_in_set(proposal, self.decisions, False)):
             all_pairs = self.proposals.union(self.decisions)
             sorted_all_pairs = sorted(list(all_pairs), key=lambda x:x[0])
+            ''' use first empty slot
             s = 1 # new minimum available slot
             for (st, pt) in sorted_all_pairs:
                 if (st > s):
                     break
                 s = st + 1
+            '''
+            if sorted_all_pairs:
+                s = max(sorted_all_pairs)[0] + 1 # use the max non-empty slot + 1
+            else:
+                s = 1
             self.proposals.add((s, proposal))
             # send `propose, (s, p)` to leader
             self.nt.send_to_server(self.leader_id,
