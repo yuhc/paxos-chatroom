@@ -207,9 +207,12 @@ class Replica:
         self.leader_id = leader_id
         # DB: print("Replica#", self.node_id, " sets leader to ", leader_id, sep="")
 
+    ''' Process decision from from leader.
+        Message format: ('decision', (slot_num, proposal)) '''
     def decide(self, decision):
         # dec = (slot_num, proposal)
         self.decisions.add(decision)
+        print(self.slot_num, "##", self.proposals, "##", self.decisions)
         flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
         while flt1:
             p1 = flt1[0][1]

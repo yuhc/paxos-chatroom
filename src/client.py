@@ -8,7 +8,8 @@ from ast       import literal_eval
 
 class Client:
 
-    REQUEST_TIME = 3
+    REQUEST_TIME  = 3
+    TIME_ALLCLEAR = 2
 
     '''
     @uid is used for printing the messages.
@@ -47,6 +48,11 @@ class Client:
             self.send_request(tp)
         threading.Timer(self.REQUEST_TIME, self.period_request).start()
 
+    def monitor_queue(self):
+        while self.queue:
+            time.sleep(self.TIME_ALLCLEAR)
+        self.nt.send_to_master(str(("allCleared", self.client_id)))
+
     def receive(self):
         while 1:
             buf = self.nt.receive()
@@ -65,9 +71,7 @@ class Client:
 
                 # clear the message queue
                 if buf[0] == "allClear":
-                    while self.queue:
-                        time.sleep(2)
-                    self.nt.send_to_master(str(("allCleared", self.client_id)))
+                    threading.Timer(0, self.monitor_queue).start()
 
                 # print chat log
                 if buf[0] == "printChatLog":
@@ -79,7 +83,6 @@ class Client:
                 # receive response from leader, send ask to master
                 # format: (response, client_id, cid, (index, chat))
                 if buf[0] == "response":
-                    # DB: self.nt.send_to_master("'messageHasBeenLogged'")
                     if buf[1] == self.client_id:
                         try:
                             # remove the message from self.queue

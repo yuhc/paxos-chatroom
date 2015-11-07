@@ -26,7 +26,6 @@ if __name__ == "__main__":
                 print(uid, "handles", buf)
                 buf = literal_eval(buf)
                 if buf[0] == 'allCleared':
-                    print(buf[1], waitfor_clear)
                     waitfor_clear.remove(buf[1])
 
     try:
