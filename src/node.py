@@ -81,7 +81,6 @@ class Server:
         self.nt.send_to_client(dest_id, message)
 
     def receive(self):
-        print("### ENTER RECEIVE")
         while 1:
             buf = self.nt.receive()
             if len(buf) > 0:
@@ -153,10 +152,13 @@ class Server:
 
     def receive_heartbeat(self, message):
         # heartbeat from leader: ['heartbeat', leader_id]
-        self.rev_heartbeat = True
+        candidate = int(message[1])
+        if candidate == self.current_leader:
+            self.rev_heartbeat = True
+        else:
+            self.current_leader = -1
         # DB: print(self.uid, "receive heartbeat from", message[1])
 
-        candidate = int(message[1])
         if candidate == self.node_id:
             self.count_heartbeat = self.count_heartbeat + 1
             if (self.count_heartbeat == 3):
@@ -227,14 +229,11 @@ class Replica:
     def decide(self, decision):
         # dec = (slot_num, proposal)
         self.decisions.add(decision)
-        print(self.slot_num, "##", self.proposals, "##", self.decisions)
         flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
         while flt1:
             p1 = flt1[0][1]
-            print("p1:", p1, "flt1:", flt1)
             flt2 = list(filter(lambda x: x[0] == self.slot_num and x[1] != p1,
                                self.proposals))
-            print("flt2:", flt2)
             if flt2:
                 self.propose(flt2[0][1]) # repropose
             self.perform(p1)
@@ -269,7 +268,6 @@ class Replica:
                                 str(("propose", (s, proposal))))
 
     def perform(self, proposal):
-        print("### perform", proposal)
         if (self.is_in_set(proposal, self.decisions, True)):
             self.slot_num = self.slot_num + 1
         else:
@@ -279,7 +277,6 @@ class Replica:
             #    f.write(proposal[3])
 
             # send `response, client_id, cid, (slot_num, result))` to client
-            print("###", self.node_id, proposal)
             self.nt.broadcast_to_client(
                 str(("response", proposal[0], proposal[1],
                      (self.slot_num-1, proposal[2]))))

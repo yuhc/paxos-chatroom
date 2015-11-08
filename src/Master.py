@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
 
     # kill the remained nodes and clients
-    time.sleep(10)
+    time.sleep(5)
     for i in range(num_nodes):
         if nodes[i] != None:
             os.kill(nodes[i], signal.SIGKILL)
