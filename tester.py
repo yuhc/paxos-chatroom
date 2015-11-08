@@ -184,7 +184,7 @@ def ExecuteCommandWithTee(cmdStr, inputLines, outputFile):
     def alarm_handler(signum, frame):
         raise Alarm
     signal(SIGALRM, alarm_handler)
-    alarm(10)
+    alarm(400)
     try:
         proc = subprocess.Popen(cmdStr, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=FNULL)
         out, err = proc.communicate(input='\n'.join(inputLines))

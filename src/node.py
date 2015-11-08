@@ -7,7 +7,7 @@ from ast       import literal_eval
 
 from network   import Network
 
-TERM_LOG   = True
+TERM_LOG   = False
 
 class Server:
 
@@ -42,8 +42,8 @@ class Server:
 
         # Leaders
         self.count_heartbeat = 4 # greater than 3
-        self.is_leader = is_leader
-        self.is_candidate = False
+        self.is_leader       = is_leader
+        self.leader_dead     = False
         if is_leader:
             time.sleep(2) # wait for other servers to start
             self.leader = Leader(node_id, self.num_nodes, self.nt)
@@ -52,7 +52,6 @@ class Server:
                 print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
                                  # remember to update replica.leader_id and leader
-        self.view_num = 0 # the id of candidate leader
 
         # Replicas
         max_faulty = (num_nodes - 1) / 2 # f in the paper
@@ -112,6 +111,7 @@ class Server:
                 if (message[0] == "heartbeat"):
                     self.receive_heartbeat(message)
                 if (message[0] == "election"):
+                    self.rev_heartbeat = True
                     self.broadcast_to_server("'heartbeat', "+str(self.node_id))
                 if (message[0] == "timeBombLeader"):
                     if (self.is_leader):
@@ -150,9 +150,9 @@ class Server:
             self.acceptor.process_p2a(message)
 
     def broadcast_heartbeat(self):
-        if self.is_leader or self.is_candidate: # others may be elected
-            self.broadcast_to_server("'heartbeat', "
-                                     + str(self.node_id))
+        if self.is_leader or \
+           self.current_leader == self.node_id: # others may be elected
+            self.broadcast_to_server(str(("heartbeat", self.node_id)))
             threading.Timer(self.TIME_HEARTBEAT,
                             self.broadcast_heartbeat).start()
 
@@ -160,44 +160,39 @@ class Server:
         # heartbeat from leader: ['heartbeat', leader_id]
         candidate = int(message[1])
         if candidate == self.current_leader:
+            # DB: print(self.uid, "set rev_heartbeat", "true", time.strftime("%M:%S", time.gmtime()))
             self.rev_heartbeat = True
+            self.leader_dead = False
         else:
-            self.current_leader = -1
-        # DB: print(self.uid, "receive heartbeat from", message[1])
+            if self.current_leader >= 0:
+                if candidate < self.current_leader:
+                    self.rev_heartbeat = True
+                    self.current_leader = candidate
+                    if self.is_replica:
+                        self.replica.set_leader(candidate)
+                    if TERM_LOG:
+                        print(self.uid, " updates Server#", candidate,
+                              " as leader candidate", sep="")
+            else:
+                self.rev_heartbeat = True
+                #self.leader_dead = True
+                self.current_leader = candidate
+                if self.is_replica:
+                    self.replica.set_leader(candidate)
+                if TERM_LOG:
+                    print(self.uid, " updates Server#", candidate,
+                          " as leader candidate", sep="")
 
-        if candidate == self.node_id:
+        if self.current_leader == self.node_id:
             self.count_heartbeat = self.count_heartbeat + 1
             if (self.count_heartbeat == 3):
+                self.nt.set_remain_message()
+                self.is_leader = True
                 self.leader = Leader(self.node_id, self.num_nodes, self.nt)
                 self.leader.init_scout()
-                self.is_leader = True
                 self.broadcast_to_client(str(("leaderElected", self.node_id)))
                 self.nt.send_to_master(str(("leaderElected", self.node_id)))
 
-        if (self.current_leader < 0) or \
-           (self.is_leader and candidate < self.node_id):
-            self.current_leader = candidate
-            self.view_num = candidate
-            if self.current_leader != self.node_id:
-                self.is_leader = False
-                self.is_candidate = False
-                self.nt.set_remain_message()
-            else:
-                self.is_candidate = True
-                self.count_heartbeat = 0 # it's the leader if # becomes 3
-                try:
-                    self.leader
-                except:
-                    #self.leader = Leader(self.node_id, self.num_nodes, self.nt)
-                    #self.leader.init_scout()
-                    pass
-                if TERM_LOG:
-                    print(self.uid, "starts heartbeat")
-                self.broadcast_heartbeat()
-            if self.is_replica:
-                self.replica.set_leader(candidate)
-            if TERM_LOG:
-                print(self.uid, " updates Server#", candidate, " as leader", sep="")
 
     '''
     Starts leader election whenever the leader's heartbeat
@@ -206,15 +201,17 @@ class Server:
     def check_heartbeat(self):
         if (not self.is_leader) and (not self.rev_heartbeat):
             # TODO: leader election
-            self.view_num = (self.view_num + 1) % self.num_nodes
             if TERM_LOG:
                 print(self.uid, " starts election Server#",
-                      self.view_num, sep="")
-            self.current_leader = -1
-            self.send_to_server(self.view_num,
-                                "'election', "+str(self.view_num))
+                      self.node_id, sep="")
+            self.current_leader = self.node_id
+            self.count_heartbeat = 0
+            if self.is_replica:
+                self.replica.set_leader(self.node_id)
+            self.broadcast_heartbeat()
+            #self.broadcast_to_server(str(("heartbeat", self.node_id)))
         self.rev_heartbeat = False
-        threading.Timer(self.TIME_HEARTBEAT, self.check_heartbeat).start()
+        threading.Timer(self.TIME_HEARTBEAT+1, self.check_heartbeat).start()
 
 
 class Replica:
@@ -506,7 +503,7 @@ class Acceptor:
         pvalue = message[2]
         b = pvalue[0]
         if b >= self.ballot_num:
-            ballot_num = b
+            self.ballot_num = b
             self.accepted.add(pvalue)
         # send ("p2b, (self.node_id, command_id), self.ballot_num") to leader
         self.nt.send_to_server(sender_id,

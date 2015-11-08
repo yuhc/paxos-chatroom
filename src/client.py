@@ -6,7 +6,7 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
-TERM_LOG   = True
+TERM_LOG   = False
 
 class Client:
 
@@ -83,10 +83,10 @@ class Client:
                         # TODO: may need index_number instead of slot_num
                         if TERM_LOG:
                             print(self.uid, ">>", l[1]-1, l[0], l[2])
-                        else:
+                        #else:
                             # print(l[1]-1, " ", l[0], ": ", l[2], sep='')
-                            self.nt.send_to_master(str(("chatLog",
-                                "{0} {1}: {2}".format(l[1]-1, l[0], l[2]))))
+                        self.nt.send_to_master(str(("chatLog",
+                            "{0} {1}: {2}".format(l[1]-1, l[0], l[2]))))
 
                 # receive response from leader, send ask to master
                 # format: (response, client_id, cid, (index, chat))

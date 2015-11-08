@@ -3,7 +3,7 @@
 import sys, socket, os, signal
 from ast import literal_eval
 
-TERM_LOG        = True
+TERM_LOG        = False
 DEBUG_HEARTBEAT = False
 DEBUG_SOCKET    = False
 
