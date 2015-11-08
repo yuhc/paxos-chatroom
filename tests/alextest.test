@@ -1,0 +1,9 @@
+start 3 2
+sendMessage 0 Hola
+sendMessage 1 Que?
+printChatLog 1
+sendMessage 0 Hi
+sendMessage 1 What
+printChatLog 0
+sendMessage 0 Ok
+endProgram

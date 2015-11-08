@@ -1,0 +1,6 @@
+start 3 2
+sendMessage 0 uhoh
+sendMessage 1 what
+crashServer 1
+allClear
+printChatLog 1

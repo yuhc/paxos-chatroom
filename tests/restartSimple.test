@@ -1,0 +1,25 @@
+start 5 2
+allClear
+crashServer 2
+allClear
+sendMessage 0 Hola
+allClear
+restartServer 2
+allClear
+sendMessage 0 Hi
+allClear
+printChatLog 1
+allClear
+crashServer 0
+allClear
+sendMessage 1 What's up?
+allClear
+printChatLog 1
+allClear
+restartServer 0
+allClear
+sendMessage 1 I really hope this works
+allClear
+printChatLog 0
+printChatLog 1
+allClear

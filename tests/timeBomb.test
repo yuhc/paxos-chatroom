@@ -1,0 +1,8 @@
+start 3 2
+timeBombLeader 4
+sendMessage 0 uhoh
+sendMessage 0 hi
+sendMessage 1 what
+allClear
+printChatLog 1
+printChatLog 0
