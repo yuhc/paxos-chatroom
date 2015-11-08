@@ -1,4 +1,2 @@
-0 0: helloWorld0
-1 1: helloWorld1
-0 0: helloWorld0
-1 1: helloWorld1
+Master#0 socket 127.0.1.1:7000 started
+# start 3 2

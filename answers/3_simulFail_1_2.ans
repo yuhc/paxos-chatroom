@@ -1,4 +1,2 @@
-0 0: before
-1 1: after
-0 0: before
-1 1: after
+Master#0 socket 127.0.1.1:7000 started
+# start 5 2
