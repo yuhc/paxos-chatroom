@@ -15,12 +15,16 @@ if __name__ == "__main__":
     uid = "Master#0"
     waitfor_clear = set()
     waitfor_leader = False
+    nodes, clients, = [], []
+    num_nodes, num_clients = 0, 0
 
     # network controller
     nt = Network(uid)
     def receive():
         global nt
         global waitfor_clear
+        global waitfor_leader
+        global nodes
         while 1:
             buf = nt.receive()
             if len(buf) > 0:
@@ -34,6 +38,7 @@ if __name__ == "__main__":
 
                 if buf[0] == 'leaderBombed':
                     waitfor_leader = True
+                    nodes[buf[1]] = None
 
 
     try:
@@ -43,8 +48,6 @@ if __name__ == "__main__":
     except:
         print(uid, "error: unable to start new thread")
 
-    nodes, clients, = [], []
-    num_nodes, num_clients = 0, 0
     for line in fileinput.input():
         print("#", line.strip())
         line = line.split();
@@ -54,7 +57,7 @@ if __name__ == "__main__":
             time.sleep(SLEEP_TIME)
 
         if not line:
-            break 
+            break
         if line[0] == 'start':
             num_nodes = int(line[1])
             num_clients = int(line[2])
