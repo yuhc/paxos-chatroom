@@ -3,6 +3,7 @@
 import sys, socket, os, signal
 from ast import literal_eval
 
+TERM_LOG        = False
 DEBUG_HEARTBEAT = False
 DEBUG_SOCKET    = False
 
@@ -42,7 +43,8 @@ class Network:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.PRIVATE_TCP_IP, TCP_PORT))
         self.server.listen(128)
-        print(uid, " socket ", self.PRIVATE_TCP_IP, ":", TCP_PORT, " started",
+        if TERM_LOG:
+            print(uid, " socket ", self.PRIVATE_TCP_IP, ":", TCP_PORT, " started",
               sep="")
 
     def set_num_nodes(self, num_nodes):
@@ -58,7 +60,8 @@ class Network:
         if self.remain_message > 0:
             self.remain_message = self.remain_message - 1
             if self.remain_message <= 0:
-                print(self.uid, "bombs")
+                if TERM_LOG:
+                    print(self.uid, "bombs")
                 self.send_to_master(str(("leaderBombed", self.node_id)))
                 os.kill(os.getpid(), signal.SIGKILL)
 
@@ -70,13 +73,15 @@ class Network:
             # do not print heartbeat
             try:
                 if DEBUG_HEARTBEAT or literal_eval(message)[0] != "heartbeat":
-                    print(self.uid, " sends ", message, " to Server ", dest_id,
+                    if TERM_LOG:
+                        print(self.uid, " sends ", message, " to Server ", dest_id,
                           sep="")
             except:
-                print(self.uid, " sends ", message, " to Server ", dest_id,
+                if TERM_LOG:
+                    print(self.uid, " sends ", message, " to Server ", dest_id,
                       sep="")
         except:
-            if DEBUG_SOCKET:
+            if DEBUG_SOCKET and TERM_LOG:
                 print(self.uid, "connects to Server", dest_id, "failed")
                 # print("Unexpected error:", sys.exc_info()[0])
         try:
@@ -91,9 +96,10 @@ class Network:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.PRIVATE_TCP_IP, self.CLIENT_BASE_PORT+dest_id))
             s.send(message.encode('ascii'))
-            print(self.uid, " sends ", message, " to Client ", dest_id, sep="")
+            if TERM_LOG:
+                print(self.uid, " sends ", message, " to Client ", dest_id, sep="")
         except:
-            if DEBUG_SOCKET:
+            if DEBUG_SOCKET and TERM_LOG:
                 print(self.uid, "connects to Client", dest_id, "failed")
 
     def send_to_master(self, message):
@@ -101,9 +107,10 @@ class Network:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.PRIVATE_TCP_IP, self.MASTER_BASE_PORT))
             s.send(message.encode('ascii'))
-            print(self.uid, " sends ", message, " to Master ", sep="")
+            if TERM_LOG:
+                print(self.uid, " sends ", message, " to Master ", sep="")
         except:
-            if DEBUG_SOCKET:
+            if DEBUG_SOCKET and TERM_LOG:
                 print(self.uid, "connects to Master", dest_id, "failed")
 
     def broadcast_to_server(self, message):
@@ -123,10 +130,12 @@ class Network:
             try:
                 if DEBUG_HEARTBEAT or \
                    literal_eval(decode_buf)[0] != "heartbeat":
-                    print(self.uid, " receives ", decode_buf, " from ", address,
+                    if TERM_LOG:
+                        print(self.uid, " receives ", decode_buf, " from ", address,
                           sep="")
             except:
-                print(self.uid, " receives ", decode_buf, " from ", address,
+                if TERM_LOG:
+                    print(self.uid, " receives ", decode_buf, " from ", address,
                       sep="")
         else:
             decode_buf = ""
@@ -134,4 +143,5 @@ class Network:
 
     def shutdown(self):
         self.server.close()
-        print(self.uid, "socket closed")
+        if TERM_LOG:
+            print(self.uid, "socket closed")

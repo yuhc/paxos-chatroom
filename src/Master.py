@@ -7,6 +7,7 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
+TERM_LOG   = False
 SLEEP_TIME = 5
 PAUSE_TIME = 0.5
 CLEAR_TIME = 2
@@ -28,7 +29,8 @@ if __name__ == "__main__":
         while 1:
             buf = nt.receive()
             if len(buf) > 0:
-                print(uid, "handles", buf)
+                if TERM_LOG:
+                    print(uid, "handles", buf)
                 buf = literal_eval(buf)
                 if buf[0] == 'allCleared':
                     waitfor_clear.remove(buf[1])
@@ -49,7 +51,8 @@ if __name__ == "__main__":
         print(uid, "error: unable to start new thread")
 
     for line in fileinput.input():
-        print("#", line.strip())
+        if TERM_LOG:
+            print("#", line.strip())
         line = line.split();
 
         # ensure the election of new leader
@@ -70,7 +73,8 @@ if __name__ == "__main__":
                                       str(i),
                                       str(num_nodes)])
                 clients.append(p.pid)
-                print("Client#", i, " pid:", p.pid, sep="")
+                if TERM_LOG:
+                    print("Client#", i, " pid:", p.pid, sep="")
             for i in range(num_nodes):
                 p = subprocess.Popen(["./node.py",
                                       str(i),
@@ -78,7 +82,8 @@ if __name__ == "__main__":
                                       str(num_nodes), str(num_clients)])
                 nodes.append(p.pid)
                 leader_id = 0
-                print("Server#", i, " pid:", p.pid, sep="")
+                if TERM_LOG:
+                    print("Server#", i, " pid:", p.pid, sep="")
             time.sleep(SLEEP_TIME) # ensure the establish of sockets
 
         if line[0] == 'sendMessage':
@@ -103,7 +108,8 @@ if __name__ == "__main__":
             nt.broadcast_to_client(str(("allClear", 0)))
             while waitfor_clear:
                 time.sleep(CLEAR_TIME)
-                print(uid, "waits for allClear")
+                if TERM_LOG:
+                    print(uid, "waits for allClear")
 
         if line[0] == 'crashServer':
             node_index = int(line[1])
@@ -113,9 +119,11 @@ if __name__ == "__main__":
                     os.kill(nodes[node_index], signal.SIGKILL)
                     nodes[node_index] = None
                 else:
-                    print("Server#", line[1], " has been killed", sep="")
+                    if TERM_LOG:
+                        print("Server#", line[1], " has been killed", sep="")
             else:
-                print(line[1], "is out of bound")
+                if TERM_LOG:
+                    print(line[1], "is out of bound")
 
         if line[0] == 'restartServer':
             node_index = int(line[1])
@@ -127,11 +135,14 @@ if __name__ == "__main__":
                                           str(False),
                                           str(len(nodes)), str(len(clients))])
                     nodes[node_index] = p.pid
-                    print("Server#", node_index, " pid:", p.pid, sep="")
+                    if TERM_LOG:
+                        print("Server#", node_index, " pid:", p.pid, sep="")
                 else:
-                    print("Server#", line[1], " is alive", sep="")
+                    if TERM_LOG:
+                        print("Server#", line[1], " is alive", sep="")
             else:
-                print("Parameter <", line[1], "> is out of bound", sep="")
+                if TERM_LOG:
+                    print("Parameter <", line[1], "> is out of bound", sep="")
             time.sleep(SLEEP_TIME) # ensure the establish of sockets
 
         if line[0] == 'timeBombLeader':
@@ -142,13 +153,15 @@ if __name__ == "__main__":
 
 
     # kill the remained nodes and clients
-    time.sleep(5)
+    time.sleep(3)
     for i in range(num_nodes):
         if nodes[i] != None:
             os.kill(nodes[i], signal.SIGKILL)
-            print("Server#", i, " stopped", sep="")
+            if TERM_LOG:
+                print("Server#", i, " stopped", sep="")
     for i in range(num_clients):
         if clients[i] != None:
             os.kill(clients[i], signal.SIGKILL)
-            print("Client#", i, " stopped", sep="")
+            if TERM_LOG:
+                print("Client#", i, " stopped", sep="")
     sys.exit()

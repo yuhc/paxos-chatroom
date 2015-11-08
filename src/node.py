@@ -7,6 +7,8 @@ from ast       import literal_eval
 
 from network   import Network
 
+TERM_LOG   = False
+
 class Server:
 
     TIME_HEARTBEAT = 3
@@ -46,7 +48,8 @@ class Server:
             time.sleep(2) # wait for other servers to start
             self.leader = Leader(node_id, self.num_nodes, self.nt)
             self.leader.init_scout()
-            print(self.uid, "is leader")
+            if TERM_LOG:
+                print(self.uid, "is leader")
         self.current_leader = -1 # updated when receiving leader's heartbeat
                                  # remember to update replica.leader_id and leader
         self.view_num = 0 # the id of candidate leader
@@ -185,11 +188,13 @@ class Server:
                     #self.leader = Leader(self.node_id, self.num_nodes, self.nt)
                     #self.leader.init_scout()
                     pass
-                print(self.uid, "starts heartbeat")
+                if TERM_LOG:
+                    print(self.uid, "starts heartbeat")
                 self.broadcast_heartbeat()
             if self.is_replica:
                 self.replica.set_leader(candidate)
-            print(self.uid, " updates Server#", candidate, " as leader", sep="")
+            if TERM_LOG:
+                print(self.uid, " updates Server#", candidate, " as leader", sep="")
 
     '''
     Starts leader election whenever the leader's heartbeat
@@ -199,8 +204,9 @@ class Server:
         if (not self.is_leader) and (not self.rev_heartbeat):
             # TODO: leader election
             self.view_num = (self.view_num + 1) % self.num_nodes
-            print(self.uid, " starts election Server#",
-                  self.view_num, sep="")
+            if TERM_LOG:
+                print(self.uid, " starts election Server#",
+                      self.view_num, sep="")
             self.current_leader = -1
             self.send_to_server(self.view_num,
                                 "'election', "+str(self.view_num))
@@ -511,5 +517,6 @@ if __name__ == "__main__":
     num_nodes = int(cmd[3])
     num_clients = int(cmd[4])
     s = Server(node_id, is_leader, num_nodes, num_clients)
-    print(s.uid, "started")
+    if TERM_LOG:
+        print(s.uid, "started")
     s.t_recv.join()

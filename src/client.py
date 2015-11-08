@@ -6,6 +6,8 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
+TERM_LOG   = False
+
 class Client:
 
     REQUEST_TIME  = 3
@@ -75,10 +77,14 @@ class Client:
 
                 # print chat log
                 if buf[0] == "printChatLog":
-                    print(self.uid, "prints chat log")
+                    if TERM_LOG:
+                        print(self.uid, "prints chat log")
                     for l in self.chatlog:
                         # TODO: may need index_number instead of slot_num
-                        print(self.uid, ">>", l[1]-1, l[0], l[2])
+                        if TERM_LOG:
+                            print(self.uid, ">>", l[1]-1, l[0], l[2])
+                        else:
+                            print(l[1]-1, " ", l[0], ": ", l[2], sep='')
 
                 # receive response from leader, send ask to master
                 # format: (response, client_id, cid, (index, chat))
@@ -96,7 +102,8 @@ class Client:
                         # log format: (client_id, slot_num, result)
                         self.chatlog.append((buf[1], buf[3][0], buf[3][1]))
                         self.history.add(buf)
-                        print(self.uid, " logs <", buf[3], ">", sep="")
+                        if TERM_LOG:
+                            print(self.uid, " logs <", buf[3], ">", sep="")
 
                 if buf[0] == "leaderElected":
                     self.period_request()
@@ -107,6 +114,7 @@ if __name__ == "__main__":
     node_id = int(cmd[1])
     num_nodes = int(cmd[2])
     c = Client(node_id, num_nodes)
-    print(c.uid, "started")
+    if TERM_LOG:
+        print(c.uid, "started")
     time.sleep(3)    # this line is for debug
     c.t_recv.join()
