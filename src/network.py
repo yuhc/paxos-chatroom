@@ -41,7 +41,7 @@ class Network:
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.PRIVATE_TCP_IP, TCP_PORT))
-        self.server.listen(5)
+        self.server.listen(128)
         print(uid, " socket ", self.PRIVATE_TCP_IP, ":", TCP_PORT, " started",
               sep="")
 
@@ -130,7 +130,7 @@ class Network:
                           sep="")
             except:
                 print(self.uid, " receives ", decode_buf, " from ", address,
-                      sep="")            
+                      sep="")
         else:
             decode_buf = ""
         return decode_buf

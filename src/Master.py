@@ -115,7 +115,7 @@ if __name__ == "__main__":
                     print("Server#", line[1], " is alive", sep="")
             else:
                 print("Parameter <", line[1], "> is out of bound", sep="")
-                time.sleep(SLEEP_TIME) # ensure the establish of sockets
+            time.sleep(SLEEP_TIME) # ensure the establish of sockets
 
         if line[0] == 'timeBombLeader':
             num_messages = int(line[1])

@@ -33,7 +33,7 @@ class Client:
             print(self.uid, "error: unable to start new thread")
 
         # send requests periodically
-        self.period_request()
+        #self.period_request()
 
     def send(self, message):
         self.nt.broadcast_to_server(message)
@@ -46,7 +46,7 @@ class Client:
     def period_request(self):
         for tp in self.queue:
             self.send_request(tp)
-        threading.Timer(self.REQUEST_TIME, self.period_request).start()
+        #threading.Timer(self.REQUEST_TIME, self.period_request).start()
 
     def monitor_queue(self):
         while self.queue:
@@ -78,7 +78,7 @@ class Client:
                     print(self.uid, "prints chat log")
                     for l in self.chatlog:
                         # TODO: may need index_number instead of slot_num
-                        print(self.uid, ">>", l[0], self.client_id, l[1])
+                        print(self.uid, ">>", l[1]-1, l[0], l[2])
 
                 # receive response from leader, send ask to master
                 # format: (response, client_id, cid, (index, chat))
@@ -93,9 +93,13 @@ class Client:
                             pass
                     if not buf in self.history:
                         # add decision into self.chatlog
-                        self.chatlog.append(buf[3])
+                        # log format: (client_id, slot_num, result)
+                        self.chatlog.append((buf[1], buf[3][0], buf[3][1]))
                         self.history.add(buf)
                         print(self.uid, " logs <", buf[3], ">", sep="")
+
+                if buf[0] == "leaderElected":
+                    self.period_request()
 
 
 if __name__ == "__main__":

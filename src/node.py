@@ -39,7 +39,9 @@ class Server:
         self.acceptor = Acceptor(self.node_id, self.nt)
 
         # Leaders
+        self.count_heartbeat = 4 # greater than 3
         self.is_leader = is_leader
+        self.is_candidate = False
         if is_leader:
             time.sleep(2) # wait for other servers to start
             self.leader = Leader(node_id, self.num_nodes, self.nt)
@@ -79,6 +81,7 @@ class Server:
         self.nt.send_to_client(dest_id, message)
 
     def receive(self):
+        print("### ENTER RECEIVE")
         while 1:
             buf = self.nt.receive()
             if len(buf) > 0:
@@ -142,7 +145,7 @@ class Server:
             self.acceptor.process_p2a(message)
 
     def broadcast_heartbeat(self):
-        if self.is_leader: # others may be elected
+        if self.is_leader or self.is_candidate: # others may be elected
             self.broadcast_to_server("'heartbeat', "
                                      + str(self.node_id))
             threading.Timer(self.TIME_HEARTBEAT,
@@ -154,20 +157,31 @@ class Server:
         # DB: print(self.uid, "receive heartbeat from", message[1])
 
         candidate = int(message[1])
+        if candidate == self.node_id:
+            self.count_heartbeat = self.count_heartbeat + 1
+            if (self.count_heartbeat == 3):
+                self.leader = Leader(self.node_id, self.num_nodes, self.nt)
+                self.leader.init_scout()
+                self.is_leader = True
+                self.broadcast_to_client(str(("leaderElected", self.node_id)))
+
         if (self.current_leader < 0) or \
            (self.is_leader and candidate < self.node_id):
             self.current_leader = candidate
             self.view_num = candidate
             if self.current_leader != self.node_id:
                 self.is_leader = False
+                self.is_candidate = False
                 self.nt.set_remain_message()
             else:
-                self.is_leader = True
+                self.is_candidate = True
+                self.count_heartbeat = 0 # it's the leader if # becomes 3
                 try:
                     self.leader
                 except:
-                    self.leader = Leader(self.node_id, self.num_nodes, self.nt)
-                    self.leader.init_scout()
+                    #self.leader = Leader(self.node_id, self.num_nodes, self.nt)
+                    #self.leader.init_scout()
+                    pass
                 print(self.uid, "starts heartbeat")
                 self.broadcast_heartbeat()
             if self.is_replica:
@@ -181,10 +195,10 @@ class Server:
     def check_heartbeat(self):
         if (not self.is_leader) and (not self.rev_heartbeat):
             # TODO: leader election
+            self.view_num = (self.view_num + 1) % self.num_nodes
             print(self.uid, " starts election Server#",
                   self.view_num, sep="")
             self.current_leader = -1
-            self.view_num = (self.view_num + 1) % self.num_nodes
             self.send_to_server(self.view_num,
                                 "'election', "+str(self.view_num))
         self.rev_heartbeat = False
@@ -197,6 +211,7 @@ class Replica:
     '''
     def __init__(self, node_id, nt):
         self.node_id   = node_id
+        self.leader_id = -1
         self.log_name  = "server_" + str(node_id) + ".log"
         self.slot_num  = 1
         self.proposals = set()
@@ -216,8 +231,10 @@ class Replica:
         flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
         while flt1:
             p1 = flt1[0][1]
+            print("p1:", p1, "flt1:", flt1)
             flt2 = list(filter(lambda x: x[0] == self.slot_num and x[1] != p1,
                                self.proposals))
+            print("flt2:", flt2)
             if flt2:
                 self.propose(flt2[0][1]) # repropose
             self.perform(p1)
@@ -226,25 +243,33 @@ class Replica:
     def propose(self, proposal):
         # DB: print("Replica", self.node_id, str(proposal), str(self.decisions))
         if (not self.is_in_set(proposal, self.decisions, False)):
-            all_pairs = self.proposals.union(self.decisions)
-            sorted_all_pairs = sorted(list(all_pairs), key=lambda x:x[0])
-            ''' use first empty slot
-            s = 1 # new minimum available slot
-            for (st, pt) in sorted_all_pairs:
-                if (st > s):
-                    break
-                s = st + 1
-            '''
-            if sorted_all_pairs:
-                s = max(sorted_all_pairs)[0] + 1 # use the max non-empty slot + 1
+            # if ever proposed
+            flt = list(filter(lambda x: x[1] == proposal, self.proposals))
+            if flt:
+                s = max(flt)[0]
             else:
-                s = 1
+                all_pairs = self.proposals.union(self.decisions)
+                sorted_all_pairs = sorted(list(all_pairs), key=lambda x:x[0])
+                ''' use first empty slot
+                s = 1 # new minimum available slot
+                for (st, pt) in sorted_all_pairs:
+                    if (st > s):
+                        break
+                    s = st + 1
+                '''
+                if sorted_all_pairs:
+                    s = max(sorted_all_pairs)[0] + 1 # use the max non-empty slot + 1
+                else:
+                    s = 1
             self.proposals.add((s, proposal))
             # send `propose, (s, p)` to leader
+            while self.leader_id < 0:
+                time.sleep(1)
             self.nt.send_to_server(self.leader_id,
                                 str(("propose", (s, proposal))))
 
     def perform(self, proposal):
+        print("### perform", proposal)
         if (self.is_in_set(proposal, self.decisions, True)):
             self.slot_num = self.slot_num + 1
         else:
@@ -254,6 +279,7 @@ class Replica:
             #    f.write(proposal[3])
 
             # send `response, client_id, cid, (slot_num, result))` to client
+            print("###", self.node_id, proposal)
             self.nt.broadcast_to_client(
                 str(("response", proposal[0], proposal[1],
                      (self.slot_num-1, proposal[2]))))
@@ -316,7 +342,7 @@ class Leader:
     def process_propose(self, message):
         (slot_num, proposal) = message[1]
         if not (slot_num in self.proposals):
-            self.proposals[slot_num] = message[1]
+            self.proposals[slot_num] = message[1][1]
             if self.active:
                 self.spawn_commander(slot_num, proposal)
 
