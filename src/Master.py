@@ -7,9 +7,8 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
-TERM_LOG   = False
+TERM_LOG   = True
 CMD_LOG    = True
-SLEEP_TIME = 5
 CLEAR_TIME = 2
 
 if __name__ == "__main__":

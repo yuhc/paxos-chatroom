@@ -7,7 +7,7 @@ from ast       import literal_eval
 
 from network   import Network
 
-TERM_LOG   = False
+TERM_LOG   = True
 
 class Server:
 

@@ -6,7 +6,7 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
-TERM_LOG   = False
+TERM_LOG   = True
 
 class Client:
 
