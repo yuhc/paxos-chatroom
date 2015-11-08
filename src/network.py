@@ -79,7 +79,8 @@ class Network:
                 print(self.uid, "connects to Server", dest_id, "failed")
                 # print("Unexpected error:", sys.exc_info()[0])
         try:
-            if literal_eval(message)[0] != "heartbeat":
+            if literal_eval(message)[0] != "heartbeat" and \
+               dest_id != self.node_id:
                 self.check_remain_message()
         except:
             self.check_remain_message()
@@ -93,11 +94,6 @@ class Network:
         except:
             if DEBUG_SOCKET:
                 print(self.uid, "connects to Client", dest_id, "failed")
-        try:
-            if literal_eval(message)[0] != "heartbeat":
-                self.check_remain_message()
-        except:
-            self.check_remain_message()
 
     def send_to_master(self, message):
         try:
