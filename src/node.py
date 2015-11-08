@@ -70,6 +70,9 @@ class Server:
             self.broadcast_heartbeat()
         self.check_heartbeat()
 
+        # notice Master that it starts
+        self.nt.send_to_master(str(("serverStarted", self.node_id)))
+
 
     def broadcast_to_server(self, message):
         self.nt.broadcast_to_server(message)

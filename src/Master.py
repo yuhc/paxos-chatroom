@@ -8,14 +8,16 @@ from network   import Network
 from ast       import literal_eval
 
 TERM_LOG   = False
+CMD_LOG    = True
 SLEEP_TIME = 5
-PAUSE_TIME = 0.5
 CLEAR_TIME = 2
 
 if __name__ == "__main__":
     uid = "Master#0"
-    waitfor_clear = set()
-    waitfor_leader = False
+    waitfor_clear   = set()
+    waitfor_server  = set()
+    waitfor_leader  = False
+    waitfor_chatlog = False
     nodes, clients, = [], []
     num_nodes, num_clients = 0, 0
 
@@ -25,6 +27,8 @@ if __name__ == "__main__":
         global nt
         global waitfor_clear
         global waitfor_leader
+        global waitfor_chatlog
+        global waitfor_server
         global nodes
         while 1:
             buf = nt.receive()
@@ -44,6 +48,10 @@ if __name__ == "__main__":
 
                 if buf[0] == 'chatLog':
                     print(buf[1])
+                    waitfor_chatlog = False
+
+                if buf[0] == 'serverStarted':
+                    waitfor_server.remove(buf[1])
 
 
     try:
@@ -54,13 +62,13 @@ if __name__ == "__main__":
         print(uid, "error: unable to start new thread")
 
     for line in fileinput.input():
-        if TERM_LOG:
+        if TERM_LOG or CMD_LOG:
             print("#", line.strip())
         line = line.split();
 
         # ensure the election of new leader
         while waitfor_leader:
-            time.sleep(SLEEP_TIME)
+            pass
 
         if not line:
             break
@@ -78,6 +86,7 @@ if __name__ == "__main__":
                 clients.append(p.pid)
                 if TERM_LOG:
                     print("Client#", i, " pid:", p.pid, sep="")
+            waitfor_server = set(range(num_nodes))
             for i in range(num_nodes):
                 p = subprocess.Popen(["./src/node.py",
                                       str(i),
@@ -87,7 +96,9 @@ if __name__ == "__main__":
                 leader_id = 0
                 if TERM_LOG:
                     print("Server#", i, " pid:", p.pid, sep="")
-            time.sleep(SLEEP_TIME) # ensure the establish of sockets
+            # ensure the establish of sockets
+            while waitfor_server:
+                pass
 
         if line[0] == 'sendMessage':
             client_index = int(line[1])
@@ -100,8 +111,11 @@ if __name__ == "__main__":
             client_index = int(line[1])
             """ Print out the client specified by client_index's chat history
                 in the format described on the handout """
+            waitfor_chatlog = True
             nt.send_to_client(client_index, str(("printChatLog", 0)))
-            time.sleep(PAUSE_TIME) # ensure the log has been printed
+            # ensure the log has been printed
+            while waitfor_chatlog:
+                pass
 
         if line[0] == 'allClear':
             """ Ensure that this blocks until all messages that are going to
@@ -110,9 +124,10 @@ if __name__ == "__main__":
             waitfor_clear = set(range(num_clients))
             nt.broadcast_to_client(str(("allClear", 0)))
             while waitfor_clear:
-                time.sleep(CLEAR_TIME)
                 if TERM_LOG:
+                    time.sleep(CLEAR_TIME)
                     print(uid, "waits for allClear")
+                pass
 
         if line[0] == 'crashServer':
             node_index = int(line[1])
@@ -131,6 +146,7 @@ if __name__ == "__main__":
         if line[0] == 'restartServer':
             node_index = int(line[1])
             """ Restart the server specified by node_index """
+            waitfor_server = {node_index}
             if node_index in range(num_nodes):
                 if nodes[node_index] == None:
                     p = subprocess.Popen(["./src/node.py",
@@ -146,7 +162,10 @@ if __name__ == "__main__":
             else:
                 if TERM_LOG:
                     print("Parameter <", line[1], "> is out of bound", sep="")
-            time.sleep(SLEEP_TIME) # ensure the establish of sockets
+
+            # ensure the establish of sockets
+            while waitfor_server:
+                pass
 
         if line[0] == 'timeBombLeader':
             num_messages = int(line[1])
@@ -156,7 +175,6 @@ if __name__ == "__main__":
 
 
     # kill the remained nodes and clients
-    time.sleep(3)
     for i in range(num_nodes):
         if nodes[i] != None:
             os.kill(nodes[i], signal.SIGKILL)
