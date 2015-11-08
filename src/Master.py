@@ -14,6 +14,7 @@ CLEAR_TIME = 2
 if __name__ == "__main__":
     uid = "Master#0"
     waitfor_clear = set()
+    waitfor_leader = False
 
     # network controller
     nt = Network(uid)
@@ -28,6 +29,13 @@ if __name__ == "__main__":
                 if buf[0] == 'allCleared':
                     waitfor_clear.remove(buf[1])
 
+                if buf[0] == 'leaderElected':
+                    waitfor_leader = False
+
+                if buf[0] == 'leaderBombed':
+                    waitfor_leader = True
+
+
     try:
         t_recv = Thread(target=receive)
         t_recv.daemon = True
@@ -41,6 +49,12 @@ if __name__ == "__main__":
         print("#", line.strip())
         line = line.split();
 
+        # ensure the election of new leader
+        while waitfor_leader:
+            time.sleep(SLEEP_TIME)
+
+        if not line:
+            break 
         if line[0] == 'start':
             num_nodes = int(line[1])
             num_clients = int(line[2])

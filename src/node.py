@@ -166,6 +166,7 @@ class Server:
                 self.leader.init_scout()
                 self.is_leader = True
                 self.broadcast_to_client(str(("leaderElected", self.node_id)))
+                self.nt.send_to_master(str(("leaderElected", self.node_id)))
 
         if (self.current_leader < 0) or \
            (self.is_leader and candidate < self.node_id):

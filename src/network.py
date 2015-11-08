@@ -59,6 +59,7 @@ class Network:
             self.remain_message = self.remain_message - 1
             if self.remain_message <= 0:
                 print(self.uid, "bombs")
+                self.send_to_master(str(("leaderBombed", self.node_id)))
                 os.kill(os.getpid(), signal.SIGKILL)
 
     def send_to_server(self, dest_id, message):
