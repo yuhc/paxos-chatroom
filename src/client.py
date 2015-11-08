@@ -84,7 +84,9 @@ class Client:
                         if TERM_LOG:
                             print(self.uid, ">>", l[1]-1, l[0], l[2])
                         else:
-                            print(l[1]-1, " ", l[0], ": ", l[2], sep='')
+                            # print(l[1]-1, " ", l[0], ": ", l[2], sep='')
+                            self.nt.send_to_master(str(("chatLog",
+                                "{0} {1}: {2}".format(l[1]-1, l[0], l[2]))))
 
                 # receive response from leader, send ask to master
                 # format: (response, client_id, cid, (index, chat))

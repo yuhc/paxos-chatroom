@@ -42,6 +42,9 @@ if __name__ == "__main__":
                     waitfor_leader = True
                     nodes[buf[1]] = None
 
+                if buf[0] == 'chatLog':
+                    print(buf[1])
+
 
     try:
         t_recv = Thread(target=receive)
@@ -69,14 +72,14 @@ if __name__ == "__main__":
             """ start up the right number of nodes and clients, and store the
                 connections to them for sending further commands """
             for i in range(num_clients):
-                p = subprocess.Popen(["./client.py",
+                p = subprocess.Popen(["./src/client.py",
                                       str(i),
                                       str(num_nodes)])
                 clients.append(p.pid)
                 if TERM_LOG:
                     print("Client#", i, " pid:", p.pid, sep="")
             for i in range(num_nodes):
-                p = subprocess.Popen(["./node.py",
+                p = subprocess.Popen(["./src/node.py",
                                       str(i),
                                       str(True) if i == 0 else str(False),
                                       str(num_nodes), str(num_clients)])
@@ -130,7 +133,7 @@ if __name__ == "__main__":
             """ Restart the server specified by node_index """
             if node_index in range(num_nodes):
                 if nodes[node_index] == None:
-                    p = subprocess.Popen(["./node.py",
+                    p = subprocess.Popen(["./src/node.py",
                                           line[1],
                                           str(False),
                                           str(len(nodes)), str(len(clients))])
