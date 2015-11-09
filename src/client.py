@@ -94,7 +94,7 @@ class Client:
                         #else:
                             # print(l[1]-1, " ", l[0], ": ", l[2], sep='')
                         log = log + "{0} {1}: {2}\n".format(l[1]-1, l[0], l[2])
-                    self.nt.send_to_master(str(("chatLog", log)))
+                    self.nt.send_to_master(str(("chatLog", log.strip())))
 
                 # receive response from leader, send ask to master
                 # format: (response, client_id, cid, (index, chat))
