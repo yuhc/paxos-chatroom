@@ -1,6 +1,7 @@
 # Paxos
 
-This is a Paxos implementation based on R. Renesse's Paxos Made Moderately Complex.
+This is a Paxos implementation based on R. Renesse's Paxos Made Moderately
+Complex.
 
 Project Information
 ==============================================================================
@@ -12,10 +13,20 @@ Project 2, Paxos
 
 Testing the Project
 ==============================================================================
+The source codes are put in `./src`. `COMMAND` file contains a single line
+`./src/Master.py` which starts the master of Paxos system. Execute:
+```
+$ ./tester.py
+```
 
+It will test all the input files in `./tests`. The inputs must be named with
+extension `.test`. It will compare the output of `Master.py` with the standard
+outputs in `./solutions`.
 
 Some Assumptions
 ==============================================================================
+*. 
+
 
 Modification of Paxos
 ==============================================================================
