@@ -195,8 +195,8 @@ class Server:
         if self.is_leader or \
            self.current_leader == self.node_id: # others may be elected
             self.broadcast_to_server(str(("heartbeat", self.node_id)))
-            threading.Timer(self.TIME_HEARTBEAT,
-                            self.broadcast_heartbeat).start()
+        threading.Timer(self.TIME_HEARTBEAT,
+                        self.broadcast_heartbeat).start()
 
     def receive_heartbeat(self, message):
         # heartbeat from leader: ['heartbeat', leader_id]
@@ -212,6 +212,8 @@ class Server:
                     self.current_leader = candidate
                     if candidate == self.node_id:
                         self.count_heartbeat = 0
+                    else:
+                        self.is_leader = False
                     if self.is_replica:
                         self.replica.set_leader(candidate)
                     if TERM_LOG:
@@ -222,7 +224,9 @@ class Server:
                 #self.leader_dead = True
                 self.current_leader = candidate
                 if candidate == self.node_id:
-                        self.count_heartbeat = 0
+                    self.count_heartbeat = 0
+                else:
+                    self.is_leader = False
                 if self.is_replica:
                     self.replica.set_leader(candidate)
                 if TERM_LOG:
@@ -386,6 +390,9 @@ class Leader:
                         Commander(self.node_id, self.num_nodes,
                                   (self.ballot_num, slot_num, proposal),
                                   self.commander_id, self.nt)
+        if TERM_LOG:
+            print("Server#" + str(self.node_id) + " spawns Commander#"
+                  + str(self.commander_id), sep="")
         self.commanders[self.commander_id].init_broadcast()
         self.commander_id = self.commander_id + 1
 

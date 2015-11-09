@@ -92,6 +92,7 @@ if __name__ == "__main__":
                 if TERM_LOG:
                     print("Client#", i, " pid:", p.pid, sep="")
             waitfor_server = set(range(num_nodes))
+            waitfor_leader = True
             for i in range(num_nodes):
                 p = subprocess.Popen(["./src/node.py",
                                       str(i),
@@ -103,7 +104,7 @@ if __name__ == "__main__":
                 if TERM_LOG:
                     print("Server#", i, " pid:", p.pid, sep="")
             # ensure the establish of sockets
-            while waitfor_server:
+            while waitfor_server and waitfor_leader:
                 pass
 
         if line[0] == 'sendMessage':

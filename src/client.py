@@ -42,7 +42,7 @@ class Client:
         self.nt.broadcast_to_server(message)
 
     def send_request(self, triple):
-        encode = "'request', " + str(triple)
+        encode = str(("request", triple))
         # broadcast to all replicas or servers
         self.send(encode)
 
