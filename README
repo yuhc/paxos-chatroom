@@ -3,6 +3,7 @@
 This is a Paxos implementation based on R. Renesse's Paxos Made Moderately
 Complex.
 
+
 Project Information
 ==============================================================================
 CS 380D Distributed Computing, Fall 2015
@@ -10,6 +11,7 @@ CS 380D Distributed Computing, Fall 2015
 Project 2, Paxos
 * Hangchen Yu, UT EID: HY4987, UTCS ID: ZHITINGZ
 * Zhiting Zhu, UT EID: ZZ3883, UTCS ID: HYU
+
 
 Testing the Project
 ==============================================================================
@@ -24,6 +26,7 @@ extension `.test`. It will compare the output of `Master.py` with the standard
 outputs in `./solutions`.
 
 `Python3` is required.
+
 
 Some Assumptions
 ==============================================================================
@@ -50,6 +53,7 @@ the receiver is dead.
 
 * The channel is valid.
 
+
 Modification of Paxos
 ==============================================================================
 
@@ -67,14 +71,18 @@ the ports occupied by them.
 Server (Node)
 ------------------------------------------------------------------------------
 The code for server lives in node.py. Each server may have multiple roles
-(Acceptor, Replica, Leader, Scout and Commander). For
-paxos to work, we need to have 2f+1 acceptors and f+1 replicas. Each server
-calculates f and assign the role based on the node id. 0 .. f are replicas and
+(Acceptor, Replica, Leader, Scout and Commander). For Paxos to work, we need
+to have `2f+1` acceptors and `f+1` replicas. Each server calculates `f` and
+assign the role based on the node id. `0` .. `f` are replicas and
 all servers are acceptors. Initially, master assign server 0 as the leader and
 if it fails, server will elect a new leader according to the leader election
 algorithm described below. We encapsulate each role as a separate class and
 create a cooresponding object when a server needs a role to perform Paxos
 operations.
+
+The created objects include Replica, Leader and Acceptor. If a server is the
+leader, then it also creates some Scouts and Commanders. When the server
+receives a message, it throws the message to cooresponding object.
 
 Client
 ------------------------------------------------------------------------------
@@ -84,6 +92,17 @@ buffer when receiving `decision` of it. When the buffer is empty, the client
 tells the master that the blocking of `allClear` can be cleared. When a client
 hears that the election of new leader is completed, it will resend the messages
 in the buffer.
+
+According to the implementation, when client does not clear its message buffer
+after long enough time, the system is stable (not changed meaningfully by the
+time). Then client will return `allClear` to master directly, and move the
+progress on.
+
+In order to deal with the case where a sendMessage is executed when all
+replicas fails, the client will notify the leader to reset the state
+periodically when it is dealing with `allClear` from master. This operation
+is aimed to reset the whole Paxos system.
+
 
 Some Techniques
 ==============================================================================
@@ -130,6 +149,7 @@ After three rounds (actually two are enough), all servers have the same
 `leader_id`, which is the smallest index of them. Then this new leader sends a
 acknowledge message to all Clients. The Clients then resend the
 messages in their waiting queues.
+
 
 Using Auto Grader
 ==============================================================================
