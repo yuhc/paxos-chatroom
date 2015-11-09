@@ -36,6 +36,8 @@ Master
 
 Server (Node)
 ------------------------------------------------------------------------------
+The code for server lives in node.py. Each server may have multiple roles. For
+paxos to work, we need to have 2f+1 acceptors and f+1 replicas. 
 
 Client
 ------------------------------------------------------------------------------
