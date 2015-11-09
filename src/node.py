@@ -55,7 +55,8 @@ class Server:
 
         # Replicas
         max_faulty = (num_nodes - 1) / 2 # f in the paper
-        if (node_id <= max_faulty):
+        # if (node_id <= max_faulty):
+        if node_id < num_nodes: # set all servers as replicas here
             # f+1  servers are replicas
             # 2f+1 (all)  servers are acceptors
             self.is_replica = False
