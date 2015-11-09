@@ -51,7 +51,8 @@ if __name__ == "__main__":
                     nodes[buf[1]] = None
 
                 if buf[0] == 'chatLog':
-                    print(buf[1])
+                    if buf[1]:
+                        print(buf[1])
                     waitfor_chatlog = False
 
                 if buf[0] == 'serverStarted':
