@@ -23,6 +23,8 @@ It will test all the input files in `./tests`. The inputs must be named with
 extension `.test`. It will compare the output of `Master.py` with the standard
 outputs in `./solutions`.
 
+`Python3` is required.
+
 Some Assumptions
 ==============================================================================
 * The tester should leave enough minutes for each test case. For the given test
@@ -129,11 +131,8 @@ After three rounds (actually two are enough), all servers have the same
 acknowledge message to all Clients. The Clients then resend the
 messages in their waiting queues.
 
-Auto Grader
+Using Auto Grader
 ==============================================================================
-
-Using the autograder:
-
 Run "python tester.py" and check your output.
 
 To add your own tests, create a .test file and a .sol file in the tests/ and solutions/ directories respectively.
