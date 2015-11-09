@@ -22,7 +22,7 @@ class Server:
     @current_leader is updated when receiving heartbeat from the leader.
     Every server is a replica.
     '''
-    def __init__(self, node_id, is_leader, num_nodes, num_clients):
+    def __init__(self, node_id, is_leader, num_nodes, num_clients, is_recover):
         self.node_id = node_id
         self.uid = "Server#" +  str(node_id)
         self.num_nodes = num_nodes
@@ -58,8 +58,18 @@ class Server:
         if (node_id <= max_faulty):
             # f+1  servers are replicas
             # 2f+1 (all)  servers are acceptors
+            self.is_replica = False
+            if is_recover:
+                self.waitfor_replica = True
+                self.broadcast_to_server(
+                    str(("requestReplicaInfo", self.node_id)))
+                while self.waitfor_replica:
+                    pass
+                self.replica = Replica(node_id, self.nt, self.recv_slot_num,
+                                       self.recv_decisions)
+            else:
+                self.replica = Replica(node_id, self.nt)
             self.is_replica = True
-            self.replica = Replica(node_id, self.nt)
         else:
             self.is_replica = False
 
@@ -93,10 +103,12 @@ class Server:
                 message = list(literal_eval(buf))
 
                 # to replica
-                if (message[0] in ['request', 'decision']):
+                if (message[0] in ['request', 'decision',
+                                   'requestReplicaInfo']):
                     self.replica_operation(message)
                 # to leader
-                if (message[0] in ['propose', 'adopted', 'preempted']):
+                if (message[0] in ['propose', 'adopted', 'preempted',
+                                   'leaderAlive']):
                     self.leader_operation(message)
                 # to scout
                 if (message[0] == "p1b" and self.is_leader):
@@ -116,6 +128,10 @@ class Server:
                 if (message[0] == "timeBombLeader"):
                     if (self.is_leader):
                         self.nt.set_remain_message(int(message[1]))
+                if (message[0] == "replicaInfo" and self.waitfor_replica):
+                    self.recv_slot_num = message[1]
+                    self.recv_decisions = set(message[2])
+                    self.waitfor_replica = False
 
     def replica_operation(self, message):
         if not self.is_replica:
@@ -126,6 +142,10 @@ class Server:
         # decision from leader: ['decision', (slot_num, proposal)]
         elif (message[0] == "decision"):
             self.replica.decide(message[1])
+        # state request from server __init__: ['requestReplicaInfo', sender_id]
+        elif (message[0] == "requestReplicaInfo"):
+            self.send_to_server(message[1], str(("replicaInfo",
+                self.replica.slot_num, list(self.replica.decisions))))
 
     def leader_operation(self, message):
         if not self.is_leader:
@@ -139,6 +159,8 @@ class Server:
         # preemption from commander: ['preempted', ballot]
         elif message[0] == 'preempted':
             self.leader.process_preempted(message)
+        elif message[0] == 'leaderAlive':
+            self.nt.send_to_master(str(("leaderAlive", self.node_id)))
 
     def acceptor_operation(self, message):
         # request from scout: ['p1a', (sender_id, scout_id), ballot_num]
@@ -218,13 +240,12 @@ class Replica:
     '''
     @state is trivial in this implementation
     '''
-    def __init__(self, node_id, nt):
+    def __init__(self, node_id, nt, slot_num = 1, decisions = set()):
         self.node_id   = node_id
         self.leader_id = -1
-        self.log_name  = "server_" + str(node_id) + ".log"
-        self.slot_num  = 1
+        self.slot_num  = slot_num
         self.proposals = set()
-        self.decisions = set()
+        self.decisions = decisions
         self.nt = nt
 
     def set_leader(self, leader_id):
@@ -236,6 +257,7 @@ class Replica:
     def decide(self, decision):
         # dec = (slot_num, proposal)
         self.decisions.add(decision)
+        print(self.node_id, decision, self.decisions, self.proposals, self.slot_num)
         flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
         while flt1:
             p1 = flt1[0][1]
@@ -257,16 +279,19 @@ class Replica:
                 all_pairs = self.proposals.union(self.decisions)
                 sorted_all_pairs = sorted(list(all_pairs), key=lambda x:x[0])
                 ''' use first empty slot
+                '''
                 s = 1 # new minimum available slot
                 for (st, pt) in sorted_all_pairs:
                     if (st > s):
                         break
                     s = st + 1
-                '''
+
+                ''' use max slot_num +1
                 if sorted_all_pairs:
                     s = max(sorted_all_pairs)[0] + 1 # use the max non-empty slot + 1
                 else:
                     s = 1
+                '''
             self.proposals.add((s, proposal))
             # send `propose, (s, p)` to leader
             while self.leader_id < 0:
@@ -516,7 +541,8 @@ if __name__ == "__main__":
     is_leader = cmd[2] == "True"
     num_nodes = int(cmd[3])
     num_clients = int(cmd[4])
-    s = Server(node_id, is_leader, num_nodes, num_clients)
+    is_recover = cmd[5] == "True"
+    s = Server(node_id, is_leader, num_nodes, num_clients, is_recover)
     if TERM_LOG:
         print(s.uid, "started")
     s.t_recv.join()

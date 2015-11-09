@@ -6,7 +6,7 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
-TERM_LOG   = False
+TERM_LOG   = True
 
 class Client:
 
@@ -25,6 +25,7 @@ class Client:
         self.queue   = []    # all waiting messages
         self.history = set() # all received messages
         self.leader_id = 0   # default leader is server#0
+        self.counter = 0     # periodically resend messages
 
         # network controller
         self.nt = Network(self.uid, self.num_nodes)
@@ -52,6 +53,10 @@ class Client:
 
     def monitor_queue(self):
         while self.queue:
+            self.counter = self.counter + 1
+            if self.counter >= 3:
+                self.period_request()
+                self.counter = 0
             time.sleep(self.TIME_ALLCLEAR)
         self.nt.send_to_master(str(("allCleared", self.client_id)))
 
@@ -73,6 +78,7 @@ class Client:
 
                 # clear the message queue
                 if buf[0] == "allClear":
+                    self.counter = 0
                     threading.Timer(0, self.monitor_queue).start()
 
                 # print chat log

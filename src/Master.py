@@ -7,8 +7,8 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
-TERM_LOG   = False
-CMD_LOG    = False
+TERM_LOG   = True
+CMD_LOG    = True
 CLEAR_TIME = 2
 
 if __name__ == "__main__":
@@ -28,6 +28,7 @@ if __name__ == "__main__":
         global waitfor_leader
         global waitfor_chatlog
         global waitfor_server
+        global waitfor_leader_resp
         global nodes
         while 1:
             buf = nt.receive()
@@ -38,8 +39,12 @@ if __name__ == "__main__":
                 if buf[0] == 'allCleared':
                     waitfor_clear.remove(buf[1])
 
+                if buf[0] == 'leaderAlive':
+                    waitfor_leader_resp = False
+
                 if buf[0] == 'leaderElected':
                     waitfor_leader = False
+                    waitfor_leader_resp = False
 
                 if buf[0] == 'leaderBombed':
                     waitfor_leader = True
@@ -90,7 +95,8 @@ if __name__ == "__main__":
                 p = subprocess.Popen(["./src/node.py",
                                       str(i),
                                       str(True) if i == 0 else str(False),
-                                      str(num_nodes), str(num_clients)])
+                                      str(num_nodes), str(num_clients),
+                                      str(False)])
                 nodes.append(p.pid)
                 leader_id = 0
                 if TERM_LOG:
@@ -121,8 +127,10 @@ if __name__ == "__main__":
                 come to consensus in PAXOS do, and that all clients have heard
                 of them """
             waitfor_clear = set(range(num_clients))
+            waitfor_leader_resp = True
             nt.broadcast_to_client(str(("allClear", 0)))
-            while waitfor_clear:
+            nt.broadcast_to_server(str(("leaderAlive", 0)))
+            while waitfor_clear or waitfor_leader_resp:
                 if TERM_LOG:
                     time.sleep(CLEAR_TIME)
                     print(uid, "waits for allClear")
@@ -152,7 +160,8 @@ if __name__ == "__main__":
                     p = subprocess.Popen(["./src/node.py",
                                           line[1],
                                           str(False),
-                                          str(len(nodes)), str(len(clients))])
+                                          str(len(nodes)), str(len(clients)),
+                                          str(True)])
                     nodes[node_index] = p.pid
                     if TERM_LOG:
                         print("Server#", node_index, " pid:", p.pid, sep="")
