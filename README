@@ -56,8 +56,15 @@ Master
 
 Server (Node)
 ------------------------------------------------------------------------------
-The code for server lives in node.py. Each server may have multiple roles. For
-paxos to work, we need to have 2f+1 acceptors and f+1 replicas. 
+The code for server lives in node.py. Each server may have multiple roles
+(Acceptor, Replica, Leader, Scout and Commander). For
+paxos to work, we need to have 2f+1 acceptors and f+1 replicas. Each server
+calculates f and assign the role based on the node id. 0 .. f are replicas and
+all servers are acceptors. Initially, master assign server 0 as the leader and
+if it fails, server will elect a new leader according to the leader election
+algorithm described below. We encapsulate each role as a separate class and
+create a cooresponding object when a server needs a role to perform Paxos
+operations. 
 
 Client
 ------------------------------------------------------------------------------
