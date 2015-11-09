@@ -209,6 +209,8 @@ class Server:
                 if candidate < self.current_leader:
                     self.rev_heartbeat = True
                     self.current_leader = candidate
+                    if candidate == self.node_id:
+                        self.count_heartbeat = 0
                     if self.is_replica:
                         self.replica.set_leader(candidate)
                     if TERM_LOG:
@@ -218,6 +220,8 @@ class Server:
                 self.rev_heartbeat = True
                 #self.leader_dead = True
                 self.current_leader = candidate
+                if candidate == self.node_id:
+                        self.count_heartbeat = 0
                 if self.is_replica:
                     self.replica.set_leader(candidate)
                 if TERM_LOG:

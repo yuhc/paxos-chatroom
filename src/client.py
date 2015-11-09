@@ -54,10 +54,16 @@ class Client:
     def monitor_queue(self):
         while self.queue:
             self.counter = self.counter + 1
-            if self.counter >= 5:
+            if self.counter == 5:
+                if TERM_LOG:
+                    print(self.uid, "sends initLeader")
                 self.nt.broadcast_to_server(
                     str(("initLeader", self.client_id))) # reset current leader
+            if self.counter >= 15:
+                if TERM_LOG:
+                    print(self.uid, "allClear timeout")
                 self.counter = 0
+                break
             time.sleep(self.TIME_ALLCLEAR)
         self.nt.send_to_master(str(("allCleared", self.client_id)))
 
@@ -65,7 +71,9 @@ class Client:
         while 1:
             buf = self.nt.receive()
             if len(buf) > 0:
-                # TODO: handle the received value
+                # handle the received value
+                if TERM_LOG:
+                    print(self.uid, "handles", buf)
                 buf = literal_eval(buf)
                 # buf = buf.split()
 
