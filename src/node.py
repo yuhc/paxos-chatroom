@@ -7,7 +7,7 @@ from ast       import literal_eval
 
 from network   import Network
 
-TERM_LOG   = True
+TERM_LOG   = False
 
 class Server:
 
@@ -61,19 +61,25 @@ class Server:
             self.is_replica = False
             if is_recover:
                 self.waitfor_replica = True
+                self.replica_all_down = False
                 self.broadcast_to_server(
                     str(("requestReplicaInfo", self.node_id)))
-                while self.waitfor_replica:
+                threading.Timer(self.TIME_HEARTBEAT*2,
+                                self.set_replica_all_down).start()
+                while self.waitfor_replica and not self.replica_all_down:
                     pass
-                self.replica = Replica(node_id, self.nt, self.recv_slot_num,
+                if not self.replica_all_down:
+                    self.replica = Replica(node_id, self.nt, self.recv_slot_num,
                                        self.recv_decisions)
+                else:
+                    self.replica = Replica(node_id, self.nt)
             else:
                 self.replica = Replica(node_id, self.nt)
             self.is_replica = True
         else:
             self.is_replica = False
 
-        # TODO: leader broadcasts heartbeat
+        # leader broadcasts heartbeat
         self.rev_heartbeat = True # whether receive heartbeat in current period
         if is_leader:
             self.broadcast_heartbeat()
@@ -82,6 +88,8 @@ class Server:
         # notice Master that it starts
         self.nt.send_to_master(str(("serverStarted", self.node_id)))
 
+    def set_replica_all_down(self):
+        self.replica_all_down = True
 
     def broadcast_to_server(self, message):
         self.nt.broadcast_to_server(message)
