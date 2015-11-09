@@ -53,6 +53,14 @@ Modification of Paxos
 
 Master
 ------------------------------------------------------------------------------
+The master reads the input commands, and send messages to clients or servers
+accordingly. Besides, the master needs to create the processes of servers and
+clients. All the output that tester needs are written by master (to stdout).
+
+As there are some commands requiring blocking, we use asynchronous blocking
+instead of `time.sleep()` to wait for the completion of these commands. At the
+end of the execution of master, it kills all the processes in order to release
+the ports occupied by them.
 
 Server (Node)
 ------------------------------------------------------------------------------
@@ -64,10 +72,16 @@ all servers are acceptors. Initially, master assign server 0 as the leader and
 if it fails, server will elect a new leader according to the leader election
 algorithm described below. We encapsulate each role as a separate class and
 create a cooresponding object when a server needs a role to perform Paxos
-operations. 
+operations.
 
 Client
 ------------------------------------------------------------------------------
+The client sends messages to all replicas (numbered from `0`..`f`) in the
+system. It stores the messages in a buffer, and remove the message from the
+buffer when receiving `decision` of it. When the buffer is empty, the client
+tells the master that the blocking of `allClear` can be cleared. When a client
+hears that the election of new leader is completed, it will resend the messages
+in the buffer.
 
 Some Techniques
 ==============================================================================
