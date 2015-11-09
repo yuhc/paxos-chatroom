@@ -27,6 +27,14 @@ outputs in `./solutions`.
 
 `Python3` is required.
 
+We supply **30** test cases including the original ones. Some of them are non-
+deterministic. According to the test environment (the normal desktops) we used,
+most of them lead to identical outputs. But `crash_half_restart_one.test` and
+`several_servers.test` are very likely to output non-deterministic results, as
+they contain several races. But their outputs are consistent. Therefore,
+normally, passing **28** test cases is enough for the current tester (it does
+not support to check consistency).
+
 
 Some Assumptions
 ==============================================================================
