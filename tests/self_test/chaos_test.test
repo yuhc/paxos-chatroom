@@ -6,7 +6,6 @@ sendMessage 1 helloWorld
 allClear
 restartServer 0
 allClear
-crashServer 0
 timeBombLeader 5
 allClear
 printChatLog 0

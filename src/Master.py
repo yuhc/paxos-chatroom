@@ -61,7 +61,7 @@ if __name__ == "__main__":
         print(uid, "error: unable to start new thread")
 
     for line in fileinput.input():
-        if TERM_LOG or CMD_LOG:
+        if (TERM_LOG or CMD_LOG) and line.strip():
             print("#", line.strip())
         line = line.split();
 
@@ -145,9 +145,10 @@ if __name__ == "__main__":
         if line[0] == 'restartServer':
             node_index = int(line[1])
             """ Restart the server specified by node_index """
-            waitfor_server = {node_index}
+
             if node_index in range(num_nodes):
                 if nodes[node_index] == None:
+                    waitfor_server = {node_index}
                     p = subprocess.Popen(["./src/node.py",
                                           line[1],
                                           str(False),

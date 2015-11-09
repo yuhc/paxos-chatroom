@@ -1,6 +1,0 @@
-start 3 2
-sendMessage 0 Hola
-sendMessage 1 Que?
-allClear
-allClear
-printChatLog 0

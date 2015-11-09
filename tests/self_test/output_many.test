@@ -1,0 +1,13 @@
+start 3 2
+sendMessage 0 hh
+sendMessage 0 hi
+sendMessage 1 hh
+allClear
+printChatLog 0
+printChatLog 0
+printChatLog 1
+printChatLog 1
+printChatLog 0
+printChatLog 0
+printChatLog 1
+
