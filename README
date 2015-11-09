@@ -46,7 +46,7 @@ the receiver is dead.
 
 * You should make sure that the indexes are not out of bound.
 
-* The channel is validity.
+* The channel is valid.
 
 Modification of Paxos
 ==============================================================================
