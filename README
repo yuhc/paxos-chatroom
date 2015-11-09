@@ -25,8 +25,28 @@ outputs in `./solutions`.
 
 Some Assumptions
 ==============================================================================
-*. 
+* The tester should leave enough minutes for each test case. For the given test
+cases, our program runs in less than 20 seconds. But it may run longer when
+given other tests.
 
+* There will be always at lease one replica alive in the system.
+
+* If you want to tolerate `f` faults, the number of servers should be at least
+`2f+1`.
+
+* Each `restartServer` is followed by a `allClear` (actually, not necessary in
+our project).
+
+* Each `timeBombLeader` follows a `allClear`.
+
+* `timeBombLeader` only counts the messages between distinct servers, even if
+the receiver is dead.
+
+* No `sendMessage` is input when the alive processes are less than half (`<=f`).
+
+* You should make sure that the indexes are not out of bound.
+
+* The channel is validity.
 
 Modification of Paxos
 ==============================================================================
@@ -42,15 +62,51 @@ paxos to work, we need to have 2f+1 acceptors and f+1 replicas.
 Client
 ------------------------------------------------------------------------------
 
-Some Techiques
-------------------------------------------------------------------------------
+Some Techniques
+==============================================================================
 
 Message Formats
 ------------------------------------------------------------------------------
+The messages are stored as tuples. Typically, a message is in the following
+format (we use the propose from Replicas as example):
+```python
+message = ('propose', (slot_num, proposal))
+```
 
-Failure Detector
+`message[0]` means the type of the message, and `message[1]` contains the
+information. `slot_num` is an integer, and `proposal` is another tuple:
+```python
+proposal = (client_id, command_id, chatlog)
+```
+
+The messages are parsed by `ast.literal_eval()`.
+
+Asynchronous Blocking
 ------------------------------------------------------------------------------
+Master and Clients may be blocked due to `restartServer`, `printChatLog` and
+`allClear`. We do not use `time.sleep()` to implement the blocking. Instead,
+the processes wait for others' acknowledges to get out of the blocking.
 
+Failure Detection
+------------------------------------------------------------------------------
+The only leader in the system keeps broadcasting heartbeat to other servers.
+Each server creates a thread to detect the heartbeat. When a server does not
+receive heartbeat in a fixed period (timeout), this server regards the leader
+crashed, and starts a leader election protocol.
+
+Leader Election
+------------------------------------------------------------------------------
+We made a bit modification of the leader election in Three-Phase-Commit project.
+When a leader election starts, the server marks `leader_is_dead` as `True`,
+regards itself as the new leader, and broadcast a heartbeat containing its
+`node_id`. If a server receives a heartbeat from others, it updates its
+`leader_id` to the `node_id` in the heartbeat when `node_id` smaller than its
+own id or `leader_is_dead` is `True`. Then it marks `leader_is_dead` as `False`.
+
+After three rounds (actually two are enough), all servers have the same
+`leader_id`, which is the smallest index of them. Then this new leader sends a
+acknowledge message to all Clients. The Clients then resend the
+messages in their waiting queues.
 
 Auto Grader
 ==============================================================================
