@@ -6,6 +6,8 @@
 \# Zhiting Zhu, UT EID: zz3883, ut csid: hyu
 
 ## 1. Testing the project
+Run "./tester.py" to use the auto grader provided to test the project. To run
+a individual test, execute "./src/Master.py tests/[test_name].test.
 
 
 
