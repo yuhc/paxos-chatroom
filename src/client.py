@@ -6,7 +6,7 @@ from threading import Thread, Lock
 from network   import Network
 from ast       import literal_eval
 
-TERM_LOG   = True
+TERM_LOG   = False
 
 class Client:
 
@@ -54,8 +54,9 @@ class Client:
     def monitor_queue(self):
         while self.queue:
             self.counter = self.counter + 1
-            if self.counter >= 3:
-                self.period_request()
+            if self.counter >= 5:
+                self.nt.broadcast_to_server(
+                    str(("initLeader", self.client_id))) # reset current leader
                 self.counter = 0
             time.sleep(self.TIME_ALLCLEAR)
         self.nt.send_to_master(str(("allCleared", self.client_id)))

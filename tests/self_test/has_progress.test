@@ -1,8 +1,7 @@
 start 3 2
+sendMessage 1 hw1
+crashServer 0
 crashServer 1
-crashServer 2
-sendMessage 0 how
-sendMessage 1 what
 restartServer 1
 allClear
 printChatLog 0

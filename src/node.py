@@ -7,7 +7,7 @@ from ast       import literal_eval
 
 from network   import Network
 
-TERM_LOG   = False
+TERM_LOG   = True
 
 class Server:
 
@@ -108,7 +108,7 @@ class Server:
                     self.replica_operation(message)
                 # to leader
                 if (message[0] in ['propose', 'adopted', 'preempted',
-                                   'leaderAlive']):
+                                   'leaderAlive', 'initLeader']):
                     self.leader_operation(message)
                 # to scout
                 if (message[0] == "p1b" and self.is_leader):
@@ -161,6 +161,17 @@ class Server:
             self.leader.process_preempted(message)
         elif message[0] == 'leaderAlive':
             self.nt.send_to_master(str(("leaderAlive", self.node_id)))
+        elif message[0] == 'initLeader':
+            # Leaders
+            self.count_heartbeat = 4 # greater than 3
+            self.is_leader = False
+            self.leader_dead = False
+            self.leader = Leader(self.node_id, self.num_nodes, self.nt)
+            self.is_leader = True
+            self.leader.init_scout()
+            if TERM_LOG:
+                print(self.uid, "resets leader info")
+            self.current_leader = -1
 
     def acceptor_operation(self, message):
         # request from scout: ['p1a', (sender_id, scout_id), ballot_num]
@@ -257,7 +268,6 @@ class Replica:
     def decide(self, decision):
         # dec = (slot_num, proposal)
         self.decisions.add(decision)
-        print(self.node_id, decision, self.decisions, self.proposals, self.slot_num)
         flt1 = list(filter(lambda x: x[0] == self.slot_num, self.decisions))
         while flt1:
             p1 = flt1[0][1]
@@ -448,7 +458,10 @@ class Scout:
         if (b == self.ballot_num):
             for item in r:
                 self.pvalues.add(item)
-            self.waitfor.remove(sender_id)
+            try:
+                self.waitfor.remove(sender_id)
+            except:
+                pass
             if (len(self.waitfor) < num_nodes/2.0):
                 self.is_exited = True
                 # send ("adopted", ballot_num, tuple(pvalues)) to leader
@@ -489,7 +502,10 @@ class Commander:
         sender_id = message[1][0]
 
         if (self.ballot_num == b):
-            self.waitfor.remove(sender_id)
+            try:
+                self.waitfor.remove(sender_id)
+            except:
+                pass
             if (len(self.waitfor) < num_nodes/2.0):
                 self.is_exited = True
                 # send 'decision', (slot_num, proposal) to all replicas

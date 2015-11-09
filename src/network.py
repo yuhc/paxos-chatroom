@@ -4,7 +4,7 @@ import sys, socket, os, signal
 from ast import literal_eval
 
 TERM_LOG        = True
-DEBUG_HEARTBEAT = True
+DEBUG_HEARTBEAT = False
 DEBUG_SOCKET    = False
 
 class Network:
