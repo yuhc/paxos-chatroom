@@ -1,0 +1,11 @@
+start 7 3
+sendMessage 0 hw0
+sendMessage 1 hw1
+sendMessage 2 hw2
+sendMessage 0 hw3
+sendMessage 2 hw4
+sendMessage 1 hw5
+allClear
+printChatLog 0
+printChatLog 1
+printChatLog 2

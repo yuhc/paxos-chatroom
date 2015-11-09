@@ -1,0 +1,6 @@
+start 3 2
+sendMessage 0 haha
+sendMessage 1 aaa
+allClear
+printChatLog 0
+printChatLog 1

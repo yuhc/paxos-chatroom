@@ -1,0 +1,11 @@
+start 3 2
+sendMessage 0 test
+sendMessage 1 world
+printChatLog 1
+sendMessage 0 hi
+sendMessage 1 world
+printChatLog 0
+sendMessage 0 Ok
+allClear
+printChatLog 0
+printChatLog 1

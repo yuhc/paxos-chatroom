@@ -1,0 +1,10 @@
+start 3 2
+crashServer 1
+crashServer 2
+researtServer 2
+allClear
+sendMessage 0 uhoh
+sendMessage 1 what
+allClear
+printChatLog 0
+printChatLog 1
