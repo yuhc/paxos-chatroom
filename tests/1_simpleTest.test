@@ -1,4 +1,0 @@
-start 3 2
-sendMessage 0 helloWorld
-allClear
-printChatLog 0

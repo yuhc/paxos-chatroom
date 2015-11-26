@@ -1,7 +1,0 @@
-start 3 2
-crashServer 1
-allClear
-sendMessage 0 hi
-restartServer 1
-allClear
-printChatLog 0

@@ -1,9 +1,0 @@
-start 5 2
-sendMessage 0 php
-allClear
-printChatLog 0
-crashServer 0
-allClear
-sendMessage 1 python
-allClear
-printChatLog 1

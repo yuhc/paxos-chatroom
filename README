@@ -9,8 +9,8 @@ Project Information
 CS 380D Distributed Computing, Fall 2015
 
 Project 2, Paxos
-* Hangchen Yu, UT EID: HY4987, UTCS ID: ZHITINGZ
-* Zhiting Zhu, UT EID: ZZ3883, UTCS ID: HYU
+* Hangchen Yu
+* Zhiting Zhu
 
 
 Testing the Project
@@ -29,9 +29,9 @@ outputs in `./solutions`.
 
 We supply **30** test cases including the original ones. Some of them are non-
 deterministic. According to the test environment (the normal desktops) we used,
-most of them lead to identical outputs. But e.g. `crash_half_restart_one.test` and
-`several_servers.test` are very likely to output non-deterministic results, as
-they contain several races. But their outputs are consistent. Therefore,
+most of them lead to identical outputs. But e.g. `crash_half_restart_one.test`
+and `several_servers.test` are very likely to output non-deterministic results,
+as they contain several races. But their outputs are consistent. Therefore,
 normally, passing more than **24** test cases is enough and very lucky for
 the current tester (it does not support to check consistency).
 

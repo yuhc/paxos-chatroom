@@ -1,9 +1,0 @@
-start 3 2
-sendMessage 0 helloWorld0
-allClear
-timeBombLeader 0
-allClear
-sendMessage 1 helloWorld1
-allClear
-printChatLog 0
-printChatLog 1

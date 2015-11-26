@@ -1,9 +1,0 @@
-start 5 2
-sendMessage 0 before
-crashServer 1
-crashServer 2
-allClear
-sendMessage 1 after
-allClear
-printChatLog 0 
-printChatLog 1 
